@@ -1,0 +1,27 @@
+{
+  "servers": {
+    "personal-mcp": {
+      "type": "stdio",
+      "command": "dotnet",
+      "args": [
+        "run",
+        "--project",
+        "${workspaceFolder}\\src\\Personal.Mcp\\Personal.Mcp.csproj",
+        "--configuration",
+        "McpServer"
+      ],
+      "env": {
+        "OBSIDIAN_VAULT_PATH": "${input:vaultPath}",
+        "ASPNETCORE_ENVIRONMENT": "McpServer"
+      }
+    }
+  },
+  "inputs": [
+    {
+      "type": "promptString",
+      "id": "vaultPath",
+      "description": "Enter your Vault Path",
+      "password": true
+    }
+  ]
+}

@@ -1,0 +1,45 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "type": "coreclr",
+      "request": "launch",
+      "name": "Launch Built DLL",
+      "preLaunchTask": "build",
+      "program": "${input:compiledDllPath}",
+      "cwd": "${workspaceFolder}/src/Personal.Mcp",
+      "args": [],
+      "stopAtEntry": false,
+      "env": {
+        "ASPNETCORE_ENVIRONMENT": "Development",
+        "OBSIDIAN_VAULT_PATH": "${input:vaultPath}"
+      }
+    },
+    {
+      "type": "coreclr",
+      "request": "launch",
+      "name": "Run Project (http)",
+      "preLaunchTask": "build",
+      "program": "dotnet",
+      "cwd": "${workspaceFolder}/src/Personal.Mcp",
+      "args": [
+        "run",
+        "--",
+        "--http"
+      ],
+      "stopAtEntry": false,
+      "env": {
+        "ASPNETCORE_ENVIRONMENT": "Development",
+        "OBSIDIAN_VAULT_PATH": "${input:vaultPath}"
+      }
+    }
+  ],
+  "inputs": [
+    
+    {
+      "type": "promptString",
+      "id": "vaultPath",
+      "description": "Enter full path to your Obsidian vault directory to set OBSIDIAN_VAULT_PATH"
+    }
+  ]
+}
