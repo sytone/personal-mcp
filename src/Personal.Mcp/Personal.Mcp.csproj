@@ -28,6 +28,10 @@
     <PackageVersion>0.1.0</PackageVersion>
     <PackageTags>AI; MCP; server; stdio; obsidian</PackageTags>
     <Description>Personal MCP Server - Interact with Obsidian vaults, manage notes, links, tags, and more.</Description>
+    <RepositoryUrl>https://github.com/sytone/personal-mcp</RepositoryUrl>
+    <PackageProjectUrl>https://github.com/sytone/personal-mcp</PackageProjectUrl>
+    <PackageLicenseFile>LICENSE</PackageLicenseFile>
+    <PackageIcon>icon.png</PackageIcon>
   </PropertyGroup>
 
   <PropertyGroup Condition="'$(Configuration)'=='McpServer'">
@@ -41,6 +45,8 @@
   <ItemGroup>
     <None Include=".mcp\server.json" Pack="true" PackagePath="/.mcp/" />
     <None Include="../../README.md" Pack="true" PackagePath="/" />
+    <None Include="../../LICENSE" Pack="true" PackagePath=""/>
+    <None Include="../../assets/icon.png" Pack="true" PackagePath=""/>
   </ItemGroup>
 
   <ItemGroup>
