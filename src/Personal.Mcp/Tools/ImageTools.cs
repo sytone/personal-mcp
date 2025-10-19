@@ -12,7 +12,7 @@ namespace Personal.Mcp.Tools;
 public static class ImageTools
 {
     [McpServerTool(Name = "read_image"), Description("Load and resize an image for viewing in MCP clients.")]
-    public static ImageContentBlock ReadImage(VaultService vault, [Description("Image path")] string path)
+    public static ImageContentBlock ReadImage(IVaultService vault, [Description("Image path")] string path)
     {
         var abs = vault.GetAbsolutePath(path);
         using var img = Image.Load(abs);

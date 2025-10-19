@@ -1,20 +1,23 @@
 using Microsoft.Data.Sqlite;
 using Microsoft.Extensions.Logging;
+using System.IO.Abstractions;
 
 namespace Personal.Mcp.Services;
 
 public class IndexService
 {
-    private readonly VaultService _vault;
+    private readonly IVaultService _vault;
+    private readonly IFileSystem _fileSystem;
     private readonly string _dbPath;
     private readonly object _gate = new();
 
-    public IndexService(VaultService vault)
+    public IndexService(IVaultService vault, IFileSystem fileSystem)
     {
         _vault = vault;
-        var metaDir = Path.Combine(_vault.VaultPath, ".obsidian");
-        Directory.CreateDirectory(metaDir);
-        _dbPath = Path.Combine(metaDir, "mcp-search-index.db");
+        _fileSystem = fileSystem;
+        var metaDir = _fileSystem.Path.Combine(_vault.VaultPath, ".obsidian");
+        _fileSystem.Directory.CreateDirectory(metaDir);
+        _dbPath = _fileSystem.Path.Combine(metaDir, "mcp-search-index.db");
         EnsureSchema();
     }
 
@@ -60,16 +63,16 @@ public class IndexService
                 while (r.Read()) existing[r.GetString(0)] = (r.GetInt64(1), r.GetInt64(2));
             }
 
-            foreach (var file in Directory.EnumerateFiles(_vault.VaultPath, "*.md", SearchOption.AllDirectories))
+            foreach (var file in _fileSystem.Directory.EnumerateFiles(_vault.VaultPath, "*.md", SearchOption.AllDirectories))
             {
                 cancellationToken.ThrowIfCancellationRequested();
-                var rel = Path.GetRelativePath(_vault.VaultPath, file).Replace("\\", "/");
-                var info = new FileInfo(file);
+                var rel = _fileSystem.Path.GetRelativePath(_vault.VaultPath, file).Replace("\\", "/");
+                var info = _fileSystem.FileInfo.New(file);
                 var mtime = info.LastWriteTimeUtc.Ticks;
                 var size = info.Length;
                 if (!existing.TryGetValue(rel, out var meta) || meta.mtime != mtime || meta.size != size)
                 {
-                    var content = File.ReadAllText(file);
+                    var content = _fileSystem.File.ReadAllText(file);
                     using var del = conn.CreateCommand();
                     del.CommandText = "DELETE FROM notes_fts WHERE path=$p";
                     del.Parameters.AddWithValue("$p", rel);
@@ -98,11 +101,11 @@ public class IndexService
     {
         var rel = relativePath.Replace("\\", "/");
         var abs = _vault.GetAbsolutePath(rel);
-        if (!File.Exists(abs)) { RemoveFileByRel(rel); return; }
-        var info = new FileInfo(abs);
+        if (!_fileSystem.File.Exists(abs)) { RemoveFileByRel(rel); return; }
+        var info = _fileSystem.FileInfo.New(abs);
         var mtime = info.LastWriteTimeUtc.Ticks;
         var size = info.Length;
-        var content = File.ReadAllText(abs);
+        var content = _fileSystem.File.ReadAllText(abs);
         lock (_gate)
         {
             using var conn = Open();

@@ -11,10 +11,10 @@ namespace Personal.Mcp.Tools;
 [McpServerToolType]
 public sealed class JournalTools
 {
-    private readonly VaultService _vault;
+    private readonly IVaultService _vault;
     private readonly IndexService _index;
 
-    public JournalTools(VaultService vault, IndexService index)
+    public JournalTools(IVaultService vault, IndexService index)
     {
         _vault = vault;
         _index = index;

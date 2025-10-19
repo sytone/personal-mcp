@@ -1,16 +1,24 @@
 using System.Text.RegularExpressions;
+using System.IO.Abstractions;
 
 namespace Personal.Mcp.Services;
 
-public partial class LinkService(VaultService vaultService)
+public partial class LinkService
 {
-    private readonly VaultService _vault = vaultService;
+    private readonly IVaultService _vault;
+    private readonly IFileSystem _fileSystem;
+
+    public LinkService(IVaultService vault, IFileSystem fileSystem)
+    {
+        _vault = vault;
+        _fileSystem = fileSystem;
+    }
 
     // Very basic wiki-link extraction for now
     public IReadOnlyList<(string target, int line, string context)> GetOutgoingLinks(string relativePath, int contextLength = 100)
     {
         var abs = _vault.GetAbsolutePath(relativePath);
-        var lines = File.ReadAllLines(abs);
+        var lines = _fileSystem.File.ReadAllLines(abs);
         var results = new List<(string target, int line, string context)>();
         var re = new Regex(@"\[\[([^\]|]+)(?:\|[^\]]+)?\]\]", RegexOptions.Compiled);
         for (int i = 0; i < lines.Length; i++)
@@ -29,12 +37,12 @@ public partial class LinkService(VaultService vaultService)
     public IReadOnlyList<(string sourcePath, string target, string context)> GetBacklinks(string targetRelativePath, int contextLength = 100)
     {
         // Backlinks: scan all notes for [[Target Note]] where Target Note name matches the file name (without extension)
-        var targetName = Path.GetFileNameWithoutExtension(targetRelativePath.Replace("\\", "/"));
+        var targetName = _fileSystem.Path.GetFileNameWithoutExtension(targetRelativePath.Replace("\\", "/"));
         var re = new Regex(@"\[\[([^\]|]+)(?:\|[^\]]+)?\]\]", RegexOptions.Compiled);
         var list = new List<(string sourcePath, string target, string context)>();
         foreach (var (abs, rel) in _vault.EnumerateMarkdownFiles())
         {
-            var text = File.ReadAllText(abs);
+            var text = _fileSystem.File.ReadAllText(abs);
             foreach (Match m in re.Matches(text))
             {
                 var linkTarget = m.Groups[1].Value.Trim();
@@ -56,7 +64,7 @@ public partial class LinkService(VaultService vaultService)
         var nameToRel = new Dictionary<string, List<string>>(StringComparer.OrdinalIgnoreCase);
         foreach (var (_, rel) in _vault.EnumerateMarkdownFiles())
         {
-            var name = Path.GetFileNameWithoutExtension(rel);
+            var name = _fileSystem.Path.GetFileNameWithoutExtension(rel);
             if (!nameToRel.TryGetValue(name, out var list)) nameToRel[name] = list = new List<string>();
             list.Add(rel);
         }
@@ -64,12 +72,12 @@ public partial class LinkService(VaultService vaultService)
         var broken = new List<(string sourcePath, string brokenLink, string displayText)>();
         foreach (var (abs, rel) in _vault.EnumerateMarkdownFiles(directory))
         {
-            var text = File.ReadAllText(abs);
+            var text = _fileSystem.File.ReadAllText(abs);
             foreach (Match m in re.Matches(text))
             {
                 var target = m.Groups[1].Value.Trim();
                 var display = m.Groups[2].Success ? m.Groups[2].Value : target;
-                var normalized = NormalizeName(Path.GetFileNameWithoutExtension(target));
+                var normalized = NormalizeName(_fileSystem.Path.GetFileNameWithoutExtension(target));
                 if (!nameToRel.ContainsKey(normalized))
                 {
                     broken.Add((rel, target, display));
@@ -85,8 +93,8 @@ public partial class LinkService(VaultService vaultService)
         var newRel = newRelativePath.Replace("\\", "/");
         var oldAbs = _vault.GetAbsolutePath(oldRel);
         var newAbs = _vault.GetAbsolutePath(newRel);
-        var oldTitle = Path.GetFileNameWithoutExtension(oldRel);
-        var newTitle = Path.GetFileNameWithoutExtension(newRel);
+        var oldTitle = _fileSystem.Path.GetFileNameWithoutExtension(oldRel);
+        var newTitle = _fileSystem.Path.GetFileNameWithoutExtension(newRel);
         var oldRelNoExt = oldRel.EndsWith(".md", StringComparison.OrdinalIgnoreCase) ? oldRel[..^3] : oldRel;
         var newRelNoExt = newRel.EndsWith(".md", StringComparison.OrdinalIgnoreCase) ? newRel[..^3] : newRel;
 
@@ -100,8 +108,8 @@ public partial class LinkService(VaultService vaultService)
 
         foreach (var (abs, rel) in _vault.EnumerateMarkdownFiles())
         {
-            var noteDir = Path.GetDirectoryName(abs)!;
-            var text = File.ReadAllText(abs);
+            var noteDir = _fileSystem.Path.GetDirectoryName(abs)!;
+            var text = _fileSystem.File.ReadAllText(abs);
             var newText = text;
             var changed = false;
 
@@ -141,8 +149,8 @@ public partial class LinkService(VaultService vaultService)
 
                 string normUrl = url.Replace("\\", "/");
                 string candidateAbs = normUrl.StartsWith('/')
-                    ? Path.GetFullPath(Path.Combine(_vault.VaultPath, normUrl.TrimStart('/')))
-                    : Path.GetFullPath(Path.Combine(noteDir, normUrl));
+                    ? _fileSystem.Path.GetFullPath(_fileSystem.Path.Combine(_vault.VaultPath, normUrl.TrimStart('/')))
+                    : _fileSystem.Path.GetFullPath(_fileSystem.Path.Combine(noteDir, normUrl));
                 string candidateAbsWithExt = candidateAbs.EndsWith(".md", StringComparison.OrdinalIgnoreCase) ? candidateAbs : candidateAbs + ".md";
 
                 if (!string.Equals(candidateAbs, oldAbs, StringComparison.OrdinalIgnoreCase) &&
@@ -159,7 +167,7 @@ public partial class LinkService(VaultService vaultService)
                 }
                 else
                 {
-                    var relative = Path.GetRelativePath(noteDir, newAbs).Replace("\\", "/");
+                    var relative = _fileSystem.Path.GetRelativePath(noteDir, newAbs).Replace("\\", "/");
                     newUrl = relative;
                 }
                 changed = true; replacements++;
@@ -168,7 +176,7 @@ public partial class LinkService(VaultService vaultService)
 
             if (changed && !newText.Equals(text, StringComparison.Ordinal))
             {
-                File.WriteAllText(abs, newText);
+                _fileSystem.File.WriteAllText(abs, newText);
                 filesUpdated++;
             }
         }

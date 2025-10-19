@@ -8,21 +8,21 @@ namespace Personal.Mcp.Tools;
 public static class PropertyTools
 {
     [McpServerTool(Name = "get_note_info"), Description("Get existence, metadata, and basic stats for a note.")]
-    public static object GetNoteInfo(VaultService vault, [Description("Note path")] string path)
+    public static object GetNoteInfo(IVaultService vault, [Description("Note path")] string path)
     {
         var info = vault.GetNoteInfo(path);
         return new { path, exists = info.exists, metadata = info.metadata, stats = new { size = info.stats.size, words = info.stats.words } };
     }
 
     [McpServerTool(Name = "get_frontmatter"), Description("Get a note's frontmatter as a key-value map.")]
-    public static object GetFrontmatter(VaultService vault, [Description("Note path")] string path)
+    public static object GetFrontmatter(IVaultService vault, [Description("Note path")] string path)
     {
         var fm = vault.GetFrontmatter(path);
         return new { path, frontmatter = fm };
     }
 
     [McpServerTool(Name = "set_property"), Description("Set or remove a frontmatter property.")]
-    public static object SetProperty(VaultService vault,
+    public static object SetProperty(IVaultService vault,
         [Description("Note path")] string path,
         [Description("Property key")] string key,
         [Description("Property value; if null, removes the key")] string? value)
@@ -32,7 +32,7 @@ public static class PropertyTools
     }
 
     [McpServerTool(Name = "set_property_list"), Description("Set a frontmatter list property (replaces existing).")]
-    public static object SetPropertyList(VaultService vault,
+    public static object SetPropertyList(IVaultService vault,
         [Description("Note path")] string path,
         [Description("Property key")] string key,
         [Description("List of values")] string[] values)
@@ -42,7 +42,7 @@ public static class PropertyTools
     }
 
     [McpServerTool(Name = "remove_property"), Description("Remove a frontmatter property.")]
-    public static object RemoveProperty(VaultService vault,
+    public static object RemoveProperty(IVaultService vault,
         [Description("Note path")] string path,
         [Description("Property key")] string key)
     {
@@ -51,7 +51,7 @@ public static class PropertyTools
     }
 
     [McpServerTool(Name = "search_by_property"), Description("Find notes by frontmatter property value (exact or contains).")]
-    public static object SearchByProperty(VaultService vault,
+    public static object SearchByProperty(IVaultService vault,
         [Description("Property key")] string key,
         [Description("Property value (optional)")] string? value = null,
         [Description("If true, substring match; otherwise exact")] bool contains = false,

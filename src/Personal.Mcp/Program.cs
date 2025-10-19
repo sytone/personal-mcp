@@ -12,6 +12,7 @@ using Personal.Mcp.Tools;
 using Personal.Mcp.Services;
 using Microsoft.Extensions.Configuration;
 using Serilog;
+using System.IO.Abstractions;
 
 // Configure Serilog
 Log.Logger = new LoggerConfiguration()
@@ -66,7 +67,8 @@ try
     }
 
     // Register core services used by tools
-    builder.Services.AddSingleton<VaultService>();
+    builder.Services.AddSingleton<IFileSystem, FileSystem>();
+    builder.Services.AddSingleton<IVaultService, VaultService>();
     builder.Services.AddSingleton<IndexService>();
     builder.Services.AddSingleton<TagService>();
     builder.Services.AddSingleton<LinkService>();

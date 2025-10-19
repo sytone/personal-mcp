@@ -8,7 +8,7 @@ namespace Personal.Mcp.Tools;
 public static class ImageExtractionTools
 {
     [McpServerTool(Name = "view_note_images"), Description("List images embedded or linked in a note and whether they exist.")]
-    public static object ViewNoteImages(VaultService vault, [Description("Note path")] string path)
+    public static object ViewNoteImages(IVaultService vault, [Description("Note path")] string path)
     {
         var items = vault.GetNoteImages(path)
             .Select(i => new { raw = i.raw, path = i.resolvedPath, exists = i.exists })

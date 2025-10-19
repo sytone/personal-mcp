@@ -9,7 +9,7 @@ namespace Personal.Mcp.Tools;
 public static class PropertyRegexDateTools
 {
     [McpServerTool(Name = "search_by_regex"), Description("Regex search across notes with context snippets.")]
-    public static object SearchByRegex(VaultService vault,
+    public static object SearchByRegex(IVaultService vault,
         [Description("Regex pattern")] string pattern,
         [Description("Flags: ignorecase|multiline|dotall")] string[]? flags = null,
         [Description("Context characters")] int context_length = 100,
@@ -52,7 +52,7 @@ public static class PropertyRegexDateTools
     }
 
     [McpServerTool(Name = "search_by_date"), Description("Find notes by created/modified date within or exactly N days.")]
-    public static object SearchByDate(VaultService vault,
+    public static object SearchByDate(IVaultService vault,
         [Description("'created' or 'modified'")] string date_type = "modified",
         [Description("Days ago")] int days_ago = 7,
         [Description("'within' or 'exactly'")] string @operator = "within")

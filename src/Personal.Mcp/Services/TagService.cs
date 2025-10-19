@@ -1,20 +1,27 @@
 using System.Text.RegularExpressions;
 using YamlDotNet.RepresentationModel;
+using System.IO.Abstractions;
 
 namespace Personal.Mcp.Services;
 
 public sealed class TagService
 {
-    private readonly VaultService _vault;
-    public TagService(VaultService vault) => _vault = vault;
+    private readonly IVaultService _vault;
+    private readonly IFileSystem _fileSystem;
+    
+    public TagService(IVaultService vault, IFileSystem fileSystem)
+    {
+        _vault = vault;
+        _fileSystem = fileSystem;
+    }
 
     public IReadOnlyDictionary<string, int> ListTags()
     {
         var counts = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
-        foreach (var file in Directory.EnumerateFiles(_vault.VaultPath, "*.md", SearchOption.AllDirectories))
+        foreach (var file in _fileSystem.Directory.EnumerateFiles(_vault.VaultPath, "*.md", SearchOption.AllDirectories))
         {
-            var rel = Path.GetRelativePath(_vault.VaultPath, file).Replace("\\", "/");
-            var text = File.ReadAllText(file);
+            var rel = _fileSystem.Path.GetRelativePath(_vault.VaultPath, file).Replace("\\", "/");
+            var text = _fileSystem.File.ReadAllText(file);
             var (fm, body) = VaultService.SplitFrontmatter(text);
             foreach (var tag in ExtractTags(fm, body))
                 counts[tag] = counts.TryGetValue(tag, out var c) ? c + 1 : 1;

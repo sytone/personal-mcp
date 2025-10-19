@@ -8,7 +8,7 @@ namespace Personal.Mcp.Tools;
 public static class OrganizationTools
 {
     [McpServerTool(Name = "list_notes"), Description("List notes in a directory (recursive by default).")]
-    public static object ListNotes(VaultService vault,
+    public static object ListNotes(IVaultService vault,
         [Description("Directory to list, e.g., 'Daily' (optional)")] string? directory = null,
         [Description("Recurse into subfolders")] bool recursive = true)
     {
@@ -23,7 +23,7 @@ public static class OrganizationTools
     }
 
     [McpServerTool(Name = "list_folders"), Description("List folders in a directory (recursive by default).")]
-    public static object ListFolders(VaultService vault,
+    public static object ListFolders(IVaultService vault,
         [Description("Directory to list from (optional)")] string? directory = null,
         [Description("Recurse into subfolders")] bool recursive = true)
     {
@@ -38,7 +38,7 @@ public static class OrganizationTools
     }
 
     [McpServerTool(Name = "create_folder"), Description("Create a folder and parents if needed.")]
-    public static object CreateFolder(VaultService vault,
+    public static object CreateFolder(IVaultService vault,
         [Description("Folder path to create, e.g., 'Research/Studies/2024'")] string folder_path,
         [Description("Create placeholder file .gitkeep")] bool create_placeholder = true)
     {

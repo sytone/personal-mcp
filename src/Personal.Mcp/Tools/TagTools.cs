@@ -21,7 +21,7 @@ public static class TagTools
     }
 
     [McpServerTool(Name = "add_tags"), Description("Add one or more tags to a note's frontmatter.")]
-    public static object AddTags(VaultService vault,
+    public static object AddTags(IVaultService vault,
         [Description("Note path")] string path,
         [Description("Tags to add")] string[] tags)
     {
@@ -30,7 +30,7 @@ public static class TagTools
     }
 
     [McpServerTool(Name = "update_tags"), Description("Replace or merge tags in a note's frontmatter.")]
-    public static object UpdateTags(VaultService vault,
+    public static object UpdateTags(IVaultService vault,
         [Description("Note path")] string path,
         [Description("New tag set or tags to merge")] string[] tags,
         [Description("When true, merges with existing; when false, replaces")] bool merge = true)
@@ -40,7 +40,7 @@ public static class TagTools
     }
 
     [McpServerTool(Name = "remove_tags"), Description("Remove tags from a note's frontmatter.")]
-    public static object RemoveTags(VaultService vault,
+    public static object RemoveTags(IVaultService vault,
         [Description("Note path")] string path,
         [Description("Tags to remove")] string[] tags)
     {

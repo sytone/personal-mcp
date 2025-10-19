@@ -9,7 +9,7 @@ namespace Personal.Mcp.Tools;
 public static class EditTools
 {
     [McpServerTool(Name = "update_note"), Description("Replace or append content to a note.")]
-    public static object UpdateNote(VaultService vault,
+    public static object UpdateNote(IVaultService vault,
         IndexService index,
         [Description("Path to the note")] string path,
         [Description("New content")] string content,
@@ -33,7 +33,7 @@ public static class EditTools
     }
 
     [McpServerTool(Name = "edit_note_content"), Description("Search and replace text (first or all occurrences)")]
-    public static object EditNoteContent(VaultService vault,
+    public static object EditNoteContent(IVaultService vault,
         IndexService index,
         [Description("Path to the note")] string path,
         [Description("Exact search text")] string search_text,
@@ -57,7 +57,7 @@ public static class EditTools
     }
 
     [McpServerTool(Name = "edit_note_section"), Description("Insert/replace/append at a markdown heading section.")]
-    public static object EditNoteSection(VaultService vault,
+    public static object EditNoteSection(IVaultService vault,
         IndexService index,
         [Description("Path to the note")] string path,
         [Description("Heading that identifies the section, e.g., '## Tasks'")] string section_identifier,
@@ -126,7 +126,7 @@ public static class EditTools
     }
 
     [McpServerTool(Name = "delete_note"), Description("Delete a note.")]
-    public static object DeleteNote(VaultService vault, IndexService index, [Description("Path to the note")] string path)
+    public static object DeleteNote(IVaultService vault, IndexService index, [Description("Path to the note")] string path)
     {
         var abs = vault.GetAbsolutePath(path);
         if (File.Exists(abs)) File.Delete(abs);

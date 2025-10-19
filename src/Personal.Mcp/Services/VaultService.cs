@@ -1,5 +1,6 @@
 using System.Text;
 using System.Text.RegularExpressions;
+using System.IO.Abstractions;
 using Microsoft.Data.Sqlite;
 using SixLabors.ImageSharp;
 using SixLabors.ImageSharp.Processing;
@@ -7,16 +8,23 @@ using YamlDotNet.RepresentationModel;
 
 namespace Personal.Mcp.Services;
 
-public sealed class VaultService
+public sealed class VaultService : IVaultService
 {
     private readonly string _vaultPath;
+    private readonly IFileSystem _fileSystem;
+    
     public string VaultPath => _vaultPath;
 
-    public VaultService()
+    public VaultService() : this(new FileSystem())
     {
+    }
+
+    public VaultService(IFileSystem fileSystem)
+    {
+        _fileSystem = fileSystem;
         _vaultPath = Environment.GetEnvironmentVariable("OBSIDIAN_VAULT_PATH")
                     ?? throw new InvalidOperationException("OBSIDIAN_VAULT_PATH is not set.");
-        if (!Directory.Exists(_vaultPath))
+        if (!_fileSystem.Directory.Exists(_vaultPath))
             throw new DirectoryNotFoundException($"Vault not found: {_vaultPath}");
     }
 
@@ -25,8 +33,8 @@ public sealed class VaultService
         relativePath = relativePath.Replace("\\", "/");
         if (relativePath.StartsWith("/")) throw new ArgumentException("Path cannot start with '/'");
         if (relativePath.Contains("..")) throw new ArgumentException("Path cannot contain '..'");
-        var abs = Path.GetFullPath(Path.Combine(_vaultPath, relativePath));
-        if (!abs.StartsWith(Path.GetFullPath(_vaultPath), StringComparison.OrdinalIgnoreCase))
+        var abs = _fileSystem.Path.GetFullPath(_fileSystem.Path.Combine(_vaultPath, relativePath));
+        if (!abs.StartsWith(_fileSystem.Path.GetFullPath(_vaultPath), StringComparison.OrdinalIgnoreCase))
             throw new UnauthorizedAccessException("Path escapes vault");
         return abs;
     }
@@ -34,8 +42,8 @@ public sealed class VaultService
     public (string content, IDictionary<string, object> metadata) ReadNote(string relativePath)
     {
         var abs = GetAbsolutePath(relativePath);
-        if (!File.Exists(abs)) throw new FileNotFoundException("Note not found", abs);
-        var text = File.ReadAllText(abs);
+        if (!_fileSystem.File.Exists(abs)) throw new FileNotFoundException("Note not found", abs);
+        var text = _fileSystem.File.ReadAllText(abs);
         var (frontmatter, body) = SplitFrontmatter(text);
         var tags = ExtractTags(frontmatter, body);
         return (body, new Dictionary<string, object>{ ["tags"] = tags, ["frontmatter"] = frontmatter });
@@ -44,16 +52,16 @@ public sealed class VaultService
     public string ReadNoteRaw(string relativePath)
     {
         var abs = GetAbsolutePath(relativePath);
-        if (!File.Exists(abs)) throw new FileNotFoundException("Note not found", abs);
-        return File.ReadAllText(abs);
+        if (!_fileSystem.File.Exists(abs)) throw new FileNotFoundException("Note not found", abs);
+        return _fileSystem.File.ReadAllText(abs);
     }
 
     public (bool exists, DateTime lastModified, long size) GetFileStats(string relativePath)
     {
         var abs = GetAbsolutePath(relativePath);
-        if (!File.Exists(abs))
+        if (!_fileSystem.File.Exists(abs))
             return (false, DateTime.MinValue, 0);
-        var info = new FileInfo(abs);
+        var info = _fileSystem.FileInfo.New(abs);
         return (true, info.LastWriteTime, info.Length);
     }
 
@@ -62,7 +70,7 @@ public sealed class VaultService
         try
         {
             var abs = GetAbsolutePath(relativePath);
-            return Directory.Exists(abs);
+            return _fileSystem.Directory.Exists(abs);
         }
         catch
         {
@@ -72,15 +80,15 @@ public sealed class VaultService
 
     public string GetFileName(string relativePath)
     {
-        return Path.GetFileName(relativePath);
+        return _fileSystem.Path.GetFileName(relativePath);
     }
 
     public void WriteNote(string relativePath, string content, bool overwrite)
     {
         var abs = GetAbsolutePath(relativePath);
-        Directory.CreateDirectory(Path.GetDirectoryName(abs)!);
-        if (File.Exists(abs) && !overwrite) throw new IOException("File exists; set overwrite=true to replace");
-        File.WriteAllText(abs, content);
+        _fileSystem.Directory.CreateDirectory(_fileSystem.Path.GetDirectoryName(abs)!);
+        if (_fileSystem.File.Exists(abs) && !overwrite) throw new IOException("File exists; set overwrite=true to replace");
+        _fileSystem.File.WriteAllText(abs, content);
     }
 
     public static (IDictionary<string, object> frontmatter, string body) SplitFrontmatter(string text)
@@ -167,9 +175,9 @@ public sealed class VaultService
     public IEnumerable<(string abs, string rel)> EnumerateMarkdownFiles(string? directory = null)
     {
         var baseDir = string.IsNullOrWhiteSpace(directory) ? _vaultPath : GetAbsolutePath(directory);
-        foreach (var abs in Directory.EnumerateFiles(baseDir, "*.md", SearchOption.AllDirectories))
+        foreach (var abs in _fileSystem.Directory.EnumerateFiles(baseDir, "*.md", SearchOption.AllDirectories))
         {
-            var rel = Path.GetRelativePath(_vaultPath, abs).Replace("\\", "/");
+            var rel = _fileSystem.Path.GetRelativePath(_vaultPath, abs).Replace("\\", "/");
             yield return (abs, rel);
         }
     }
@@ -177,13 +185,13 @@ public sealed class VaultService
     public (bool exists, IDictionary<string, object> metadata, (long size, int words) stats) GetNoteInfo(string relativePath)
     {
         var abs = GetAbsolutePath(relativePath);
-        if (!File.Exists(abs))
+        if (!_fileSystem.File.Exists(abs))
             return (false, new Dictionary<string, object>(), (0, 0));
-        var text = File.ReadAllText(abs);
+        var text = _fileSystem.File.ReadAllText(abs);
         var (fm, body) = SplitFrontmatter(text);
         var tags = ExtractTags(fm, body);
         var words = string.IsNullOrWhiteSpace(body) ? 0 : Regex.Matches(body, "\\b\\w+\\b").Count;
-        return (true, new Dictionary<string, object> { ["tags"] = tags, ["frontmatter"] = fm }, (new FileInfo(abs).Length, words));
+        return (true, new Dictionary<string, object> { ["tags"] = tags, ["frontmatter"] = fm }, (_fileSystem.FileInfo.New(abs).Length, words));
     }
 
     // --- Tag operations ---
@@ -228,7 +236,7 @@ public sealed class VaultService
     public IDictionary<string, object> GetFrontmatter(string relativePath)
     {
         var abs = GetAbsolutePath(relativePath);
-        var text = File.Exists(abs) ? File.ReadAllText(abs) : string.Empty;
+        var text = _fileSystem.File.Exists(abs) ? _fileSystem.File.ReadAllText(abs) : string.Empty;
         var (fm, _) = SplitFrontmatter(text);
         return new Dictionary<string, object>(fm, StringComparer.OrdinalIgnoreCase);
     }
@@ -266,7 +274,7 @@ public sealed class VaultService
         var comp = caseInsensitive ? StringComparison.OrdinalIgnoreCase : StringComparison.Ordinal;
         foreach (var (abs, rel) in EnumerateMarkdownFiles())
         {
-            var text = File.ReadAllText(abs);
+            var text = _fileSystem.File.ReadAllText(abs);
             var (fm, _) = SplitFrontmatter(text);
             if (fm.TryGetValue(key, out var v))
             {
@@ -303,9 +311,9 @@ public sealed class VaultService
     public IReadOnlyList<(string raw, string? resolvedPath, bool exists)> GetNoteImages(string relativePath)
     {
         var abs = GetAbsolutePath(relativePath);
-        if (!File.Exists(abs)) return Array.Empty<(string, string?, bool)>();
-        var text = File.ReadAllText(abs);
-        var dir = Path.GetDirectoryName(abs)!;
+        if (!_fileSystem.File.Exists(abs)) return Array.Empty<(string, string?, bool)>();
+        var text = _fileSystem.File.ReadAllText(abs);
+        var dir = _fileSystem.Path.GetDirectoryName(abs)!;
         var results = new List<(string raw, string? resolvedPath, bool exists)>();
 
         // Obsidian embedded image: ![[path or name.ext]] optionally with | dimension
@@ -314,8 +322,8 @@ public sealed class VaultService
         {
             var target = m.Groups[1].Value.Trim();
             var pathNoNorm = ResolveAssetPath(target, dir);
-            var rel = pathNoNorm is null ? null : Path.GetRelativePath(_vaultPath, pathNoNorm).Replace("\\", "/");
-            results.Add((m.Value, rel, pathNoNorm is not null && File.Exists(pathNoNorm)));
+            var rel = pathNoNorm is null ? null : _fileSystem.Path.GetRelativePath(_vaultPath, pathNoNorm).Replace("\\", "/");
+            results.Add((m.Value, rel, pathNoNorm is not null && _fileSystem.File.Exists(pathNoNorm)));
         }
 
         // Markdown image: ![alt](path)
@@ -324,8 +332,8 @@ public sealed class VaultService
         {
             var target = m.Groups[1].Value.Trim();
             var pathNoNorm = ResolveAssetPath(target, dir);
-            var rel = pathNoNorm is null ? null : Path.GetRelativePath(_vaultPath, pathNoNorm).Replace("\\", "/");
-            results.Add((m.Value, rel, pathNoNorm is not null && File.Exists(pathNoNorm)));
+            var rel = pathNoNorm is null ? null : _fileSystem.Path.GetRelativePath(_vaultPath, pathNoNorm).Replace("\\", "/");
+            results.Add((m.Value, rel, pathNoNorm is not null && _fileSystem.File.Exists(pathNoNorm)));
         }
 
         return results;
@@ -336,13 +344,13 @@ public sealed class VaultService
         // If absolute-like, combine with vault
         var norm = target.Replace("\\", "/");
         // If path is relative, resolve against note directory first, then vault root
-        string try1 = Path.GetFullPath(Path.Combine(noteDirAbs, norm));
-        if (File.Exists(try1)) return try1;
-        string try2 = Path.GetFullPath(Path.Combine(_vaultPath, norm));
-        if (File.Exists(try2)) return try2;
+        string try1 = _fileSystem.Path.GetFullPath(_fileSystem.Path.Combine(noteDirAbs, norm));
+        if (_fileSystem.File.Exists(try1)) return try1;
+        string try2 = _fileSystem.Path.GetFullPath(_fileSystem.Path.Combine(_vaultPath, norm));
+        if (_fileSystem.File.Exists(try2)) return try2;
         // Also try searching by basename across vault
-        var name = Path.GetFileName(norm);
-        var found = Directory.EnumerateFiles(_vaultPath, name, SearchOption.AllDirectories).FirstOrDefault();
+        var name = _fileSystem.Path.GetFileName(norm);
+        var found = _fileSystem.Directory.EnumerateFiles(_vaultPath, name, SearchOption.AllDirectories).FirstOrDefault();
         return found;
     }
 
@@ -366,19 +374,19 @@ public sealed class VaultService
     private (IDictionary<string, object> fm, string body, string abs) ReadNoteFull(string relativePath)
     {
         var abs = GetAbsolutePath(relativePath);
-        var text = File.Exists(abs) ? File.ReadAllText(abs) : string.Empty;
+        var text = _fileSystem.File.Exists(abs) ? _fileSystem.File.ReadAllText(abs) : string.Empty;
         var (fm, body) = SplitFrontmatter(text);
         return (fm, body, abs);
     }
 
-    private static void WriteFrontmatterAndBody(string abs, IDictionary<string, object> fm, string body)
+    private void WriteFrontmatterAndBody(string abs, IDictionary<string, object> fm, string body)
     {
         var sb = new StringBuilder();
         sb.AppendLine("---");
         WriteYamlMapping(sb, fm, 0);
         sb.AppendLine("---");
         if (!string.IsNullOrEmpty(body)) sb.Append(body);
-        File.WriteAllText(abs, sb.ToString());
+        _fileSystem.File.WriteAllText(abs, sb.ToString());
     }
 
     private static void WriteYamlMapping(StringBuilder sb, IDictionary<string, object> map, int indent)

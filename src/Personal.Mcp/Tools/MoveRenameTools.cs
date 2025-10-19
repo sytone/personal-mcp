@@ -8,7 +8,7 @@ namespace Personal.Mcp.Tools;
 public static class MoveRenameTools
 {
     [McpServerTool(Name = "move_note"), Description("Move or rename a note.")]
-    public static object MoveNote(VaultService vault,
+    public static object MoveNote(IVaultService vault,
         LinkService links,
         IndexService index,
         [Description("Source path")] string source_path,
@@ -42,7 +42,7 @@ public static class MoveRenameTools
     }
 
     [McpServerTool(Name = "rename_note"), Description("Rename a note within the same directory.")]
-    public static object RenameNote(VaultService vault,
+    public static object RenameNote(IVaultService vault,
         LinkService links,
         IndexService index,
         [Description("Old path")] string old_path,
@@ -76,7 +76,7 @@ public static class MoveRenameTools
     }
 
     [McpServerTool(Name = "move_folder"), Description("Move a folder and all contents.")]
-    public static object MoveFolder(VaultService vault,
+    public static object MoveFolder(IVaultService vault,
         [Description("Source folder")] string source_folder,
         [Description("Destination folder")] string destination_folder,
         [Description("Update links (future)")] bool update_links = true)
