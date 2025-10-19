@@ -1,13 +1,17 @@
 {
-  "$schema": "https://static.modelcontextprotocol.io/schemas/2025-09-29/server.schema.json",
-  "description": "Personal MCP Server - Interact with Obsidian vaults, manage notes, links, tags, and more",
+  "$schema": "https://static.modelcontextprotocol.io/schemas/2025-10-17/server.schema.json",
   "name": "io.github.sytone/obsidian-mcp",
-  "version": "0.1.0",
+  "description": "Personal MCP Server - Interact with Obsidian vaults, manage notes, links, tags, and more",
+  "repository": {
+    "url": "https://github.com/sytone/obsidian-mcp",
+    "source": "github"
+  },
+  "version": "0.2.1",
   "packages": [
     {
       "registryType": "nuget",
       "identifier": "Sytone.Personal.Mcp",
-      "version": "0.1.0",
+      "version": "0.2.1",
       "transport": {
         "type": "stdio"
       },
@@ -16,14 +20,10 @@
         {
           "name": "OBSIDIAN_VAULT_PATH",
           "description": "Path to the Obsidian vault",
-          "is_required": true,
-          "is_secret": false
+          "isRequired": true,
+          "isSecret": false
         }
       ]
     }
-  ],
-  "repository": {
-    "url": "https://github.com/sytone/obsidian-mcp",
-    "source": "github"
-  }
+  ]
 }

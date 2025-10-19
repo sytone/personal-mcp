@@ -1,4 +1,4 @@
-﻿using Microsoft.AspNetCore.Builder;
+using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
@@ -51,7 +51,7 @@ try
     var mcpServerBuilder = builder.Services
         .AddMcpServer(options =>
         {
-            options.ServerInfo = new() { Name = "Personal.Mcp", Version = "0.1.0" };
+            options.ServerInfo = new() { Name = "Personal.Mcp", Version = "0.2.1" };
         })
         .WithToolsFromAssembly();
 
