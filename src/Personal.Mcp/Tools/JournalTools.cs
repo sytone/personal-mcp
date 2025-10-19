@@ -170,7 +170,7 @@ public sealed class JournalTools
 
         if (headingIndex >= 0)
         {
-            // Insert after the last line of this section (until next '## ' or end)
+            // Heading exists: Insert after the last line of this section (until next '## ' or end)
             int insertIndex = headingIndex + 1;
             var sectionHeaderRegex = new Regex(@"^##\s+\d{1,2}\s+\w+\s*$", RegexOptions.Compiled);
             while (insertIndex < lines.Count && !sectionHeaderRegex.IsMatch(lines[insertIndex]))
@@ -188,14 +188,51 @@ public sealed class JournalTools
         }
         else
         {
-            // Heading not found: append a new heading for the day and then the entry
-            if (lines.Count > 0 && !string.IsNullOrWhiteSpace(lines[^1]))
+            // Heading not found: find correct insertion point to maintain sequential day order
+            var sectionHeaderRegex = new Regex(@"^##\s+(\d{1,2})\s+\w+\s*$", RegexOptions.Compiled);
+            int targetDay = targetDate.Day;
+            int insertBeforeIndex = -1;
+
+            // Find all day headings and their line indices
+            for (int i = 0; i < lines.Count; i++)
             {
-                lines.Add(string.Empty);
+                var match = sectionHeaderRegex.Match(lines[i]);
+                if (match.Success && int.TryParse(match.Groups[1].Value, out int dayNum))
+                {
+                    if (dayNum > targetDay)
+                    {
+                        // Found a day that comes after our target day
+                        insertBeforeIndex = i;
+                        break;
+                    }
+                }
             }
-            lines.Add(heading);
-            lines.Add(string.Empty);
-            lines.Add($"- {timePrefix} - {entryToInsert}");
+
+            if (insertBeforeIndex >= 0)
+            {
+                // Insert the new heading before the found heading (with proper spacing)
+                // Add blank line before if previous line has content
+                if (insertBeforeIndex > 0 && !string.IsNullOrWhiteSpace(lines[insertBeforeIndex - 1]))
+                {
+                    lines.Insert(insertBeforeIndex, string.Empty);
+                    insertBeforeIndex++;
+                }
+                lines.Insert(insertBeforeIndex, heading);
+                lines.Insert(insertBeforeIndex + 1, string.Empty);
+                lines.Insert(insertBeforeIndex + 2, $"- {timePrefix} - {entryToInsert}");
+                lines.Insert(insertBeforeIndex + 3, string.Empty); // Blank line after section
+            }
+            else
+            {
+                // No later days found: append at end
+                if (lines.Count > 0 && !string.IsNullOrWhiteSpace(lines[^1]))
+                {
+                    lines.Add(string.Empty);
+                }
+                lines.Add(heading);
+                lines.Add(string.Empty);
+                lines.Add($"- {timePrefix} - {entryToInsert}");
+            }
         }
 
         // Write using VaultService (creates directories automatically)

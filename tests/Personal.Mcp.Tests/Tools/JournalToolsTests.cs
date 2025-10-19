@@ -457,5 +457,79 @@ public class JournalToolsTests : IClassFixture<TestVaultFixture>
             readResult.Should().Contain("Week 42 entry");
             readResult.Should().Contain("Week 43 entry");
         }
+
+        [Fact]
+        public void AddJournalEntry_InsertsHeadingInSequentialOrder_WhenLaterDaysExist()
+        {
+            // Arrange - First add an entry for Friday (Oct 17)
+            var fridayDate = "2025-10-17"; // Friday of Week 42
+            var fridayEntry = "Friday entry";
+            _journalTools.AddJournalEntry(fridayEntry, date: fridayDate);
+
+            // Act - Now add an entry for Wednesday (Oct 15) - should insert BEFORE Friday
+            var wednesdayDate = "2025-10-15"; // Wednesday of Week 42
+            var wednesdayEntry = "Wednesday entry added after Friday";
+            var result = _journalTools.AddJournalEntry(wednesdayEntry, date: wednesdayDate);
+
+            // Assert
+            result.Should().Contain("Added entry to");
+            result.Should().Contain("## 15 Wednesday");
+
+            // Verify the content has correct ordering
+            var content = _fixture.VaultService.ReadNoteRaw("1 Journal/2025/2025-W42.md");
+            
+            // Wednesday (15) should come before Friday (17)
+            var wednesdayIndex = content.IndexOf("## 15 Wednesday");
+            var fridayIndex = content.IndexOf("## 17 Friday");
+            
+            wednesdayIndex.Should().BeGreaterThan(-1, "Wednesday heading should exist");
+            fridayIndex.Should().BeGreaterThan(-1, "Friday heading should exist");
+            wednesdayIndex.Should().BeLessThan(fridayIndex, "Wednesday should appear before Friday");
+
+            // Verify both entries are present
+            content.Should().Contain("Wednesday entry added after Friday");
+            content.Should().Contain("Friday entry");
+        }
+
+        [Fact]
+        public void AddJournalEntry_MaintainsSequentialOrder_WithMultipleOutOfOrderInserts()
+        {
+            // Arrange & Act - Add entries in non-sequential order
+            _journalTools.AddJournalEntry("Friday entry", date: "2025-10-17");  // Day 17
+            _journalTools.AddJournalEntry("Monday entry", date: "2025-10-13");  // Day 13
+            _journalTools.AddJournalEntry("Wednesday entry", date: "2025-10-15"); // Day 15
+            _journalTools.AddJournalEntry("Thursday entry", date: "2025-10-16");  // Day 16
+            _journalTools.AddJournalEntry("Tuesday entry", date: "2025-10-14");   // Day 14
+
+            // Assert
+            var content = _fixture.VaultService.ReadNoteRaw("1 Journal/2025/2025-W42.md");
+
+            // Extract positions of all day headings
+            var mondayPos = content.IndexOf("## 13 Monday");
+            var tuesdayPos = content.IndexOf("## 14 Tuesday");
+            var wednesdayPos = content.IndexOf("## 15 Wednesday");
+            var thursdayPos = content.IndexOf("## 16 Thursday");
+            var fridayPos = content.IndexOf("## 17 Friday");
+
+            // Verify all headings exist
+            mondayPos.Should().BeGreaterThan(-1);
+            tuesdayPos.Should().BeGreaterThan(-1);
+            wednesdayPos.Should().BeGreaterThan(-1);
+            thursdayPos.Should().BeGreaterThan(-1);
+            fridayPos.Should().BeGreaterThan(-1);
+
+            // Verify sequential ordering
+            mondayPos.Should().BeLessThan(tuesdayPos, "Monday should come before Tuesday");
+            tuesdayPos.Should().BeLessThan(wednesdayPos, "Tuesday should come before Wednesday");
+            wednesdayPos.Should().BeLessThan(thursdayPos, "Wednesday should come before Thursday");
+            thursdayPos.Should().BeLessThan(fridayPos, "Thursday should come before Friday");
+
+            // Verify all entries are present
+            content.Should().Contain("Monday entry");
+            content.Should().Contain("Tuesday entry");
+            content.Should().Contain("Wednesday entry");
+            content.Should().Contain("Thursday entry");
+            content.Should().Contain("Friday entry");
+        }
     }
 }
