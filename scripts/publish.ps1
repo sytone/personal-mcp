@@ -3,24 +3,40 @@ param(
     [string]$Version
 )
 
+Write-Host "🔄 Updating version to $Version..."
+
 # Update version in csproj
 $csproj = "src/Personal.Mcp/Personal.Mcp.csproj"
+Write-Host "🔄 Updating $csproj"
+(Get-Content $csproj) -replace '<Version>.*</Version>', "<Version>$Version</Version>" | Set-Content $csproj
 (Get-Content $csproj) -replace '<PackageVersion>.*</PackageVersion>', "<PackageVersion>$Version</PackageVersion>" | Set-Content $csproj
 
 # Update version in .mcp/server.json
 $serverJsonPath = "src/Personal.Mcp/.mcp/server.json"
+Write-Host "🔄 Updating $serverJsonPath"
 (Get-Content $serverJsonPath) -replace '"version": ".*?"', "`"version`": `"$Version`"" | Set-Content $serverJsonPath
 
 # Update version in Program.cs
 $programCsPath = "src/Personal.Mcp/Program.cs"
+Write-Host "🔄 Updating $programCsPath"
 (Get-Content $programCsPath) -replace 'Version = ".*?"', "Version = `"$Version`"" | Set-Content $programCsPath
 
 # Update the change log
 
 # Test the build
-dotnet clean $csproj -c Release
+Write-Host "🔨 Building the project..."
+Write-Host "🔖 Version to be published: $Version"
+
+Write-Host "🪥 Cleaning previous builds..."
+dotnet clean -c Release
+
+Write-Host "🔥 Removing previous nuget packages..."
 Remove-Item -Path ./nupkg -Recurse -Force -ErrorAction SilentlyContinue
-dotnet pack $csproj -c Release -o ./nupkg
+
+Write-Host "🏗️ Building, testing, and packing..."
+dotnet build -c Release
+dotnet test  -c Release
+dotnet pack -c Release -o ./nupkg
 
 # If any errors abort
 if ($LASTEXITCODE -ne 0) {

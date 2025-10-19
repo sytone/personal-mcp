@@ -25,6 +25,7 @@
     <!-- Set recommended package metadata -->
     <PackageReadmeFile>README.md</PackageReadmeFile>
     <PackageId>Sytone.Personal.Mcp</PackageId>
+    <Version>0.2.1</Version>
     <PackageVersion>0.2.1</PackageVersion>
     <PackageTags>AI; MCP; server; stdio; obsidian</PackageTags>
     <Description>Personal MCP Server - Interact with Obsidian vaults, manage notes, links, tags, and more.</Description>
