@@ -44,7 +44,14 @@ if ($LASTEXITCODE -ne 0) {
     exit $LASTEXITCODE
 }
 
+versionize --skip-commit --skip-tag
+
 Read-Host "✅ Build succeeded. Press Enter to continue with publishing or Ctrl+C to abort."
+
+# Commit the version changes
+git add .
+git commit -m "chore: bump version to $Version"
+git push
 
 # Tag in git
 git tag -a "$Version" -m "Release version $Version"
