@@ -21,65 +21,57 @@ public class TestVaultFixture : IDisposable
         // Use a deterministic path for the mock vault
         VaultPath = @"C:\TestVault";
 
-        // Create mock file system
-        FileSystem = new MockFileSystem();
+        // Create mock file system with pre-populated files
+        var mockFiles = new Dictionary<string, MockFileData>();
+        
+        // Create vault root directory
+        mockFiles[@"C:\TestVault"] = new MockDirectoryData();
+        
+        // Populate test files
+        PopulateVirtualFileSystem(mockFiles);
+        
+        // Initialize mock file system with all files
+        FileSystem = new MockFileSystem(mockFiles);
 
         // Set environment variable for VaultService
         Environment.SetEnvironmentVariable("OBSIDIAN_VAULT_PATH", VaultPath);
-
-        // Create test directory structure
-        CreateTestDirectoryStructure();
-        CreateTestFiles();
 
         // Initialize services with mock file system
         VaultService = new VaultService(FileSystem);
         IndexService = new IndexService(VaultService, FileSystem);
     }
 
-    private void CreateTestDirectoryStructure()
+    private void PopulateVirtualFileSystem(Dictionary<string, MockFileData> mockFiles)
     {
+        // Create directory structure (directories need to be explicitly added to MockFileSystem)
         var directories = new[]
         {
-            "1 Journal",
-            "1 Journal/2025",
-            "1 Journal/2024",
-            "Notes",
-            "Projects",
-            ".obsidian"
+            @"C:\TestVault\1 Journal",
+            @"C:\TestVault\1 Journal\2025",
+            @"C:\TestVault\1 Journal\2024",
+            @"C:\TestVault\Notes",
+            @"C:\TestVault\Projects",
+            @"C:\TestVault\.obsidian"
         };
 
         foreach (var dir in directories)
         {
-            FileSystem.Directory.CreateDirectory(Path.Combine(VaultPath, dir));
+            mockFiles[dir] = new MockDirectoryData();
         }
-    }
 
-    private void CreateTestFiles()
-    {
         // Create test journal files
-        CreateJournalFile("1 Journal/2025/2025-W42.md", CreateWeeklyJournalContent(2025, 42));
-        CreateJournalFile("1 Journal/2025/2025-W41.md", CreateWeeklyJournalContent(2025, 41));
-        CreateJournalFile("1 Journal/2024/2024-12-31.md", CreateDailyJournalContent(new DateTime(2024, 12, 31)));
+        AddMockFile(mockFiles, @"C:\TestVault\1 Journal\2025\2025-W42.md", CreateWeeklyJournalContent(2025, 42));
+        AddMockFile(mockFiles, @"C:\TestVault\1 Journal\2025\2025-W41.md", CreateWeeklyJournalContent(2025, 41));
+        AddMockFile(mockFiles, @"C:\TestVault\1 Journal\2024\2024-12-31.md", CreateDailyJournalContent(new DateTime(2024, 12, 31)));
 
         // Create test note files
-        CreateNoteFile("Notes/Test Note.md", CreateTestNoteContent("Test Note", new[] { "test", "example" }));
-        CreateNoteFile("Projects/Personal MCP.md", CreateTestNoteContent("Personal MCP Project", new[] { "project", "mcp", "csharp" }));
+        AddMockFile(mockFiles, @"C:\TestVault\Notes\Test Note.md", CreateTestNoteContent("Test Note", new[] { "test", "example" }));
+        AddMockFile(mockFiles, @"C:\TestVault\Projects\Personal MCP.md", CreateTestNoteContent("Personal MCP Project", new[] { "project", "mcp", "csharp" }));
     }
 
-    private void CreateJournalFile(string relativePath, string content)
+    private void AddMockFile(Dictionary<string, MockFileData> mockFiles, string fullPath, string content)
     {
-        var fullPath = Path.Combine(VaultPath, relativePath);
-        var directory = Path.GetDirectoryName(fullPath);
-        if (directory != null && !FileSystem.Directory.Exists(directory))
-        {
-            FileSystem.Directory.CreateDirectory(directory);
-        }
-        FileSystem.File.WriteAllText(fullPath, content);
-    }
-
-    private void CreateNoteFile(string relativePath, string content)
-    {
-        CreateJournalFile(relativePath, content); // Same implementation
+        mockFiles[fullPath] = new MockFileData(content);
     }
 
     private static string CreateWeeklyJournalContent(int year, int week)
