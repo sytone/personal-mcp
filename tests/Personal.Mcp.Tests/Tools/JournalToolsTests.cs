@@ -43,6 +43,46 @@ public class JournalToolsTests : IClassFixture<TestVaultFixture>
         }
 
         [Fact]
+        public void ReadJournalEntries_WithVaultSettings_TakesPrecedence()
+        {
+            // Arrange: write a vault root settings file to point journalPath to 'Notes'
+            var settingsPath = Path.Combine(_fixture.VaultPath, "mcp-settings.md");
+            var content = "---\njournalPath: \"Notes\"\n---\nVault settings";
+            _fixture.FileSystem.File.WriteAllText(settingsPath, content);
+
+            // Act
+            var result = _journalTools.ReadJournalEntries();
+
+            // Assert
+            result.Should().Contain("File: Notes/Test Note.md");
+
+            // Cleanup
+            _fixture.FileSystem.File.Delete(settingsPath);
+        }
+
+        [Fact]
+        public void ReadJournalEntries_WithEnvironmentVariable_TakesEffect()
+        {
+            // Arrange
+            var envVar = "PERSONAL_MCP_JOURNAL_PATH";
+            var original = Environment.GetEnvironmentVariable(envVar);
+            try
+            {
+                Environment.SetEnvironmentVariable(envVar, "Notes");
+
+                // Act
+                var result = _journalTools.ReadJournalEntries();
+
+                // Assert - should pick up Notes as journal path
+                result.Should().Contain("File: Notes/Test Note.md");
+            }
+            finally
+            {
+                Environment.SetEnvironmentVariable(envVar, original);
+            }
+        }
+
+        [Fact]
         public void ReadJournalEntries_WithInvalidJournalPath_ReturnsErrorMessage()
         {
             // Act

@@ -28,7 +28,12 @@ public sealed class JournalTools
         [Description("Maximum number of entries to return, newest first.")] int maxEntries = 10,
         [Description("Include full content (true) or just list paths and dates (false)."), DefaultValue(true)] bool includeContent = true)
     {
-        journalPath = string.IsNullOrWhiteSpace(journalPath) ? "1 Journal" : journalPath;
+        // Resolve default journal path using vault-level settings then environment variable, otherwise fall back to hard-coded default
+        if (string.IsNullOrWhiteSpace(journalPath))
+        {
+            var cfg = _vault.GetVaultSetting("journalPath");
+            journalPath = string.IsNullOrWhiteSpace(cfg) ? "1 Journal" : cfg;
+        }
 
         DateTime? from = TryParseDate(fromDate);
         DateTime? to = TryParseDate(toDate);
@@ -108,7 +113,12 @@ public sealed class JournalTools
             return "No content provided.";
         }
 
-        journalPath = string.IsNullOrWhiteSpace(journalPath) ? "1 Journal" : journalPath;
+        // Resolve default journal path using vault settings/env variable if not provided
+        if (string.IsNullOrWhiteSpace(journalPath))
+        {
+            var cfg = _vault.GetVaultSetting("journalPath");
+            journalPath = string.IsNullOrWhiteSpace(cfg) ? "1 Journal" : cfg;
+        }
 
         try
         {

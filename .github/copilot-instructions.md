@@ -151,6 +151,7 @@ This is a **public repository**. When contributing or modifying files, follow th
 - **Location**: All documentation files MUST be placed in the `docs/` folder
 - **README Exception**: The main `README.md` file is the only documentation file that can exist at the root level
 - **No duplicate docs**: Do not create documentation files at the root level or in other directories
+- **Always Use Markdown Formatting**: Always use Markdown formatting in the docs files, do not underline headings or use other formatting approaches. Markdown is the only allowed format. 
 
 ### File Naming Conventions
 - **Format**: Use lowercase letters with dashes (kebab-case) for all filenames

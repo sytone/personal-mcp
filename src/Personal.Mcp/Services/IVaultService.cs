@@ -99,4 +99,14 @@ public interface IVaultService
     /// Gets all images referenced in a note
     /// </summary>
     IReadOnlyList<(string raw, string? resolvedPath, bool exists)> GetNoteImages(string relativePath);
+
+    /// <summary>
+    /// Reads a markdown settings file from the vault root (if present) and returns its frontmatter as a key/value dictionary.
+    /// </summary>
+    IDictionary<string, object> GetVaultSettings();
+
+    /// <summary>
+    /// Gets a single vault setting value. Checks the vault root settings file first then environment variables prefixed with PERSONAL_MCP_ (e.g. PERSONAL_MCP_JOURNAL_PATH).
+    /// </summary>
+    string? GetVaultSetting(string key);
 }

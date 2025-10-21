@@ -118,6 +118,108 @@ public sealed class VaultService : IVaultService
         return (fm, body);
     }
 
+    private const string VaultSettingsFileName = "mcp-settings.md";
+
+    /// <summary>
+    /// Reads frontmatter from a markdown settings file in the vault root, if present.
+    /// </summary>
+    public IDictionary<string, object> GetVaultSettings()
+    {
+        var abs = _fileSystem.Path.Combine(_vaultPath, VaultSettingsFileName);
+        if (!_fileSystem.File.Exists(abs))
+        {
+            // Try to copy the sample settings shipped with the application. Prefer the assets copy if present.
+            var configDefaultDocs = _fileSystem.Path.Combine(AppContext.BaseDirectory, "docs", VaultSettingsFileName);
+            var configDefaultRoot = _fileSystem.Path.Combine(AppContext.BaseDirectory, VaultSettingsFileName);
+
+            var configDefault = _fileSystem.File.Exists(configDefaultDocs)
+                ? configDefaultDocs
+                : configDefaultRoot;
+            if (_fileSystem.File.Exists(configDefault))
+            {
+                try
+                {
+                    // Ensure vault root exists (should already) and copy sample
+                    _fileSystem.File.Copy(configDefault,  abs);
+                }
+                catch
+                {
+                    // Best-effort: fall back to creating an inline sample
+                }
+            }
+
+            if (!_fileSystem.File.Exists(abs))
+            {
+                // Create a sample settings file so users can customize vault-wide settings.
+                var sb = new StringBuilder();
+                sb.AppendLine("---");
+                sb.AppendLine("# Personal MCP vault settings");
+                sb.AppendLine("# Example: set the default journal path relative to vault root");
+                sb.AppendLine("# journalPath: \"1 Journal\"");
+                sb.AppendLine("---");
+                sb.AppendLine();
+                sb.AppendLine("# Add vault-wide settings in the YAML frontmatter above.");
+                _fileSystem.File.WriteAllText(abs, sb.ToString());
+            }
+
+            return new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase);
+        }
+        var text = _fileSystem.File.ReadAllText(abs);
+        var (fm, _) = SplitFrontmatter(text);
+        return fm;
+    }
+
+    /// <summary>
+    /// Gets a single setting, checking vault settings then environment variables (PERSONAL_MCP_{KEY}).
+    /// </summary>
+    public string? GetVaultSetting(string key)
+    {
+        if (string.IsNullOrWhiteSpace(key)) return null;
+
+        var fm = GetVaultSettings();
+        if (TryGetFrontmatterValue(fm, key, out var v) && v != null)
+        {
+            // handle simple value types and lists
+            if (v is IEnumerable<object> seq)
+            {
+                // join list into comma-separated values
+                return string.Join(",", seq.Select(x => x?.ToString() ?? string.Empty));
+            }
+            return v.ToString();
+        }
+
+        // Fallback to environment variable, e.g., PERSONAL_MCP_JOURNAL_PATH
+        var envName = "PERSONAL_MCP_" + ToEnvVarName(key);
+        var env = Environment.GetEnvironmentVariable(envName);
+        return string.IsNullOrWhiteSpace(env) ? null : env;
+    }
+
+    private static bool TryGetFrontmatterValue(IDictionary<string, object> fm, string key, out object? value)
+    {
+        value = null;
+        if (fm == null || fm.Count == 0) return false;
+        var normalizedKey = NormalizeKey(key);
+        foreach (var kv in fm)
+        {
+            if (NormalizeKey(kv.Key) == normalizedKey)
+            {
+                value = kv.Value;
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private static string NormalizeKey(string k) => (k ?? string.Empty).ToLowerInvariant().Replace("_", string.Empty).Replace("-", string.Empty);
+
+    private static string ToEnvVarName(string key)
+    {
+        // Convert camelCase or kebab to UPPER_SNAKE_CASE
+        var s = System.Text.RegularExpressions.Regex.Replace(key, "([a-z0-9])([A-Z])", "$1_$2");
+        s = s.Replace('-', '_').Replace(' ', '_');
+        return s.ToUpperInvariant();
+    }
+
     private static IDictionary<string, object> ParseYaml(string yaml)
     {
         var dict = new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase);

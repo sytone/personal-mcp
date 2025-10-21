@@ -1,6 +1,6 @@
 ---
 description: 'Personal notes specialist for Obsidian vault management and knowledge organization'
-tools: ['runCommands', 'edit/createFile', 'edit/editFiles', 'search', 'personal-mcp/*', 'usages', 'problems', 'changes', 'openSimpleBrowser', 'fetch']
+tools: ['edit/createFile', 'edit/editFiles', 'search', 'runCommands', 'personal-mcp/*', 'usages', 'problems', 'changes', 'openSimpleBrowser', 'fetch']
 ---
 
 # Personal Notes Assistant Instructions
