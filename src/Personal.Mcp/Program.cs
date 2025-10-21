@@ -25,6 +25,14 @@ try
 {
     Log.Information("Starting Personal MCP Server...");
 
+    // If OBSIDIAN_VAULT_PATH is not set, report a error and exit.
+    if (string.IsNullOrEmpty(Environment.GetEnvironmentVariable("OBSIDIAN_VAULT_PATH")))
+    {
+        Log.Error("Environment variable OBSIDIAN_VAULT_PATH is not set. Please set it to the path of your Obsidian vault and restart the application.");
+        return;
+    }
+    Log.Information("OBSIDIAN_VAULT_PATH: {VaultPath}", Environment.GetEnvironmentVariable("OBSIDIAN_VAULT_PATH"));
+
     var useStreamableHttp = UseStreamableHttp(Environment.GetEnvironmentVariables(), args);
 
     IHostApplicationBuilder builder = useStreamableHttp
@@ -58,7 +66,7 @@ try
 
     if (useStreamableHttp)
     {
-        
+
         mcpServerBuilder.WithHttpTransport(o => o.Stateless = true);
     }
     else
@@ -66,7 +74,12 @@ try
         mcpServerBuilder.WithStdioServerTransport();
     }
 
+    // Create the database connection configuration, by default use the file system and make it relative to this process exec.
+    var indexFilePath = Path.Combine(AppContext.BaseDirectory, "personal-mcp-index.db");
+    var indexConnectionConfig = new IndexConnectionConfig(indexFilePath, false);
+
     // Register core services used by tools
+    builder.Services.AddSingleton(indexConnectionConfig);
     builder.Services.AddSingleton<IFileSystem, FileSystem>();
     builder.Services.AddSingleton<IVaultService, VaultService>();
     builder.Services.AddSingleton<IndexService>();

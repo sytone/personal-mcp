@@ -4,31 +4,48 @@ using System.IO.Abstractions;
 
 namespace Personal.Mcp.Services;
 
-public class IndexService
+public class IndexService : IDisposable
 {
     private readonly IVaultService _vault;
     private readonly IFileSystem _fileSystem;
-    private readonly string _dbPath;
+    private readonly IndexConnectionConfig _connectionConfig;
     private readonly object _gate = new();
+    private SqliteConnection? _persistentConnection;
+    private bool _disposed;
 
-    public IndexService(IVaultService vault, IFileSystem fileSystem)
+    public IndexService(IVaultService vault, IFileSystem fileSystem, IndexConnectionConfig connectionConfig)
     {
         _vault = vault;
         _fileSystem = fileSystem;
-        var metaDir = _fileSystem.Path.Combine(_vault.VaultPath, ".obsidian");
-        _fileSystem.Directory.CreateDirectory(metaDir);
-        _dbPath = _fileSystem.Path.Combine(metaDir, "mcp-search-index.db");
+        _connectionConfig = connectionConfig;
+
+        // For in-memory databases, create and keep connection open
+        if (_connectionConfig.IsInMemory)
+        {
+            _persistentConnection = new SqliteConnection(_connectionConfig.BuildConnectionString());
+            _persistentConnection.Open();
+        }
+
         EnsureSchema();
     }
 
-    private SqliteConnection Open() => new($"Data Source={_dbPath}");
+    private SqliteConnection Open()
+    {
+        // For in-memory databases, return the persistent connection
+        if (_connectionConfig.IsInMemory && _persistentConnection != null)
+        {
+            return _persistentConnection;
+        }
+
+        // For file-based databases, create a new connection
+        return new SqliteConnection(_connectionConfig.BuildConnectionString());
+    }
 
     private void EnsureSchema()
     {
         lock (_gate)
         {
-            using var conn = Open();
-            conn.Open();
+            var conn = Open();
             using var cmd = conn.CreateCommand();
             cmd.CommandText = @"
                 PRAGMA journal_mode=WAL;
@@ -51,8 +68,9 @@ public class IndexService
     {
         lock (_gate)
         {
-            using var conn = Open();
-            conn.Open();
+            var conn = Open();
+
+
             using var tx = conn.BeginTransaction();
 
             var existing = new Dictionary<string, (long mtime, long size)>(StringComparer.OrdinalIgnoreCase);
@@ -94,6 +112,7 @@ public class IndexService
             }
 
             tx.Commit();
+
         }
     }
 
@@ -108,8 +127,9 @@ public class IndexService
         var content = _fileSystem.File.ReadAllText(abs);
         lock (_gate)
         {
-            using var conn = Open();
-            conn.Open();
+            var conn = Open();
+
+
             using var tx = conn.BeginTransaction();
             using (var del = conn.CreateCommand())
             {
@@ -133,6 +153,7 @@ public class IndexService
                 up.ExecuteNonQuery();
             }
             tx.Commit();
+
         }
     }
 
@@ -141,8 +162,9 @@ public class IndexService
         var rel = relativePath.Replace("\\", "/");
         lock (_gate)
         {
-            using var conn = Open();
-            conn.Open();
+            var conn = Open();
+
+
             using var tx = conn.BeginTransaction();
             using (var del1 = conn.CreateCommand())
             {
@@ -157,6 +179,7 @@ public class IndexService
                 del2.ExecuteNonQuery();
             }
             tx.Commit();
+
         }
     }
 
@@ -171,8 +194,9 @@ public class IndexService
     {
         lock (_gate)
         {
-            using var conn = Open();
-            conn.Open();
+            var conn = Open();
+
+
             using var cmd = conn.CreateCommand();
             cmd.CommandText = @"
                 SELECT path, snippet(notes_fts, 1, '[', ']', ' … ', 8)
@@ -185,6 +209,33 @@ public class IndexService
             {
                 yield return (r.GetString(0), r.GetString(1));
             }
+
         }
+    }
+
+    public void Dispose()
+    {
+        Dispose(true);
+        GC.SuppressFinalize(this);
+    }
+
+    protected virtual void Dispose(bool disposing)
+    {
+        if (_disposed)
+        {
+            return;
+        }
+
+        if (disposing)
+        {
+            // Dispose managed resources
+            if (_persistentConnection != null)
+            {
+                _persistentConnection.Dispose();
+                _persistentConnection = null;
+            }
+        }
+
+        _disposed = true;
     }
 }

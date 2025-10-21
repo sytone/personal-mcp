@@ -38,7 +38,8 @@ public class TestVaultFixture : IDisposable
 
         // Initialize services with mock file system
         VaultService = new VaultService(FileSystem);
-        IndexService = new IndexService(VaultService, FileSystem);
+        var inMemoryIndexConfig = new IndexConnectionConfig("InMemory", true);
+        IndexService = new IndexService(VaultService, FileSystem, inMemoryIndexConfig);
     }
 
     private void PopulateVirtualFileSystem(Dictionary<string, MockFileData> mockFiles)

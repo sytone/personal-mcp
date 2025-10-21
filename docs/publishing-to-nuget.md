@@ -47,7 +47,7 @@ cd ~/repos/obsidian-mcp
 
 # Clean previous builds
 dotnet clean --configuration Release
-Remove-Item -Path ./nupkg -Recurse -Force -ErrorAction SilentlyContinue
+Remove-Item -Path ./nuget -Recurse -Force -ErrorAction SilentlyContinue
 ```
 
 ### 2. Build in Release Configuration
@@ -204,7 +204,7 @@ The GitHub Actions workflow `publish.yml` automates publishing on tagged release
 $env:NUGET_API_KEY = "your-api-key-here"
 
 # Push to NuGet.org
-dotnet nuget push ./nupkg/Sytone.Personal.Mcp.0.1.0.nupkg `
+dotnet nuget push ./nuget/Sytone.Personal.Mcp.0.1.0.nupkg `
     --api-key $env:NUGET_API_KEY `
     --source https://api.nuget.org/v3/index.json
 ```
@@ -225,7 +225,7 @@ Your package was pushed.
 Invoke-WebRequest -Uri https://dist.nuget.org/win-x86-commandline/latest/nuget.exe -OutFile nuget.exe
 
 # Push to NuGet.org
-.\nuget.exe push ./nupkg/Sytone.Personal.Mcp.0.1.0.nupkg `
+.\nuget.exe push ./nuget/Sytone.Personal.Mcp.0.1.0.nupkg `
     -ApiKey $env:NUGET_API_KEY `
     -Source https://api.nuget.org/v3/index.json
 ```
@@ -320,13 +320,13 @@ Consider adding release notes in the .csproj:
 ```powershell
 # Clean previous builds
 dotnet clean src/Personal.Mcp/Personal.Mcp.csproj -c Release
-Remove-Item -Path ./nupkg -Recurse -Force -ErrorAction SilentlyContinue
+Remove-Item -Path ./nuget -Recurse -Force -ErrorAction SilentlyContinue
 
 # Build new version
-dotnet pack src/Personal.Mcp/Personal.Mcp.csproj -c Release -o ./nupkg
+dotnet pack src/Personal.Mcp/Personal.Mcp.csproj -c Release -o ./nuget
 
 # Publish new version
-dotnet nuget push ./nupkg/Sytone.Personal.Mcp.0.2.0.nupkg `
+dotnet nuget push ./nuget/Sytone.Personal.Mcp.0.2.0.nupkg `
     --api-key $env:NUGET_API_KEY `
     --source https://api.nuget.org/v3/index.json
 ```
@@ -403,7 +403,7 @@ Review package metadata in `.csproj` and fix validation errors shown on NuGet.or
 
    ```powershell
    # Extract and review contents
-   Expand-Archive ./nupkg/Sytone.Personal.Mcp.0.1.0.nupkg -DestinationPath ./package-review
+   Expand-Archive ./nuget/Sytone.Personal.Mcp.0.1.0.nupkg -DestinationPath ./package-review
    code ./package-review  # Open in editor to review
    ```
 
@@ -501,9 +501,9 @@ Review package metadata in `.csproj` and fix validation errors shown on NuGet.or
 # Complete workflow
 cd ~/repos/obsidian-mcp && `
 dotnet clean src/Personal.Mcp/Personal.Mcp.csproj -c Release && `
-Remove-Item -Path ./nupkg -Recurse -Force -ErrorAction SilentlyContinue && `
-dotnet pack src/Personal.Mcp/Personal.Mcp.csproj -c Release -o ./nupkg && `
-dotnet nuget push ./nupkg/Sytone.Personal.Mcp.*.nupkg --api-key $env:NUGET_API_KEY --source https://api.nuget.org/v3/index.json
+Remove-Item -Path ./nuget -Recurse -Force -ErrorAction SilentlyContinue && `
+dotnet pack src/Personal.Mcp/Personal.Mcp.csproj -c Release -o ./nuget && `
+dotnet nuget push ./nuget/Sytone.Personal.Mcp.*.nupkg --api-key $env:NUGET_API_KEY --source https://api.nuget.org/v3/index.json
 ```
 
 ### Version Bump and Publish Script
@@ -524,9 +524,9 @@ $csproj = "src/Personal.Mcp/Personal.Mcp.csproj"
 
 # Build and publish
 dotnet clean $csproj -c Release
-Remove-Item -Path ./nupkg -Recurse -Force -ErrorAction SilentlyContinue
-dotnet pack $csproj -c Release -o ./nupkg
-dotnet nuget push "./nupkg/Sytone.Personal.Mcp.$Version.nupkg" --api-key $ApiKey --source https://api.nuget.org/v3/index.json
+Remove-Item -Path ./nuget -Recurse -Force -ErrorAction SilentlyContinue
+dotnet pack $csproj -c Release -o ./nuget
+dotnet nuget push "./nuget/Sytone.Personal.Mcp.$Version.nupkg" --api-key $ApiKey --source https://api.nuget.org/v3/index.json
 
 # Tag in git
 git tag -a "v$Version" -m "Release version $Version"
