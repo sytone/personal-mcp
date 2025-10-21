@@ -1,7 +1,6 @@
 using System.Text;
 using System.Text.RegularExpressions;
 using System.IO.Abstractions;
-using Microsoft.Data.Sqlite;
 using SixLabors.ImageSharp;
 using SixLabors.ImageSharp.Processing;
 using YamlDotNet.RepresentationModel;
