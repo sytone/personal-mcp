@@ -90,7 +90,7 @@ dotnet run --project src/Personal.Mcp
 ### Building for NuGet Package
 ```powershell
 dotnet build src/Personal.Mcp/Personal.Mcp.csproj -c Release
-dotnet pack src/Personal.Mcp/Personal.Mcp.csproj -c Release -o ./nupkg
+dotnet pack src/Personal.Mcp/Personal.Mcp.csproj -c Release -o ./nuget
 # Inspect: unzip .nupkg to verify no sensitive files, then publish to nuget.org
 ```
 

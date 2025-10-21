@@ -31,12 +31,12 @@ Write-Host "🪥 Cleaning previous builds..."
 dotnet clean -c Release
 
 Write-Host "🔥 Removing previous nuget packages..."
-Remove-Item -Path ./nupkg -Recurse -Force -ErrorAction SilentlyContinue
+Remove-Item -Path ./nuget -Recurse -Force -ErrorAction SilentlyContinue
 
 Write-Host "🏗️ Building, testing, and packing..."
 dotnet build -c Release
 dotnet test  -c Release
-dotnet pack -c Release -o ./nupkg
+dotnet pack -c Release -o ./nuget
 
 # If any errors abort
 if ($LASTEXITCODE -ne 0) {
