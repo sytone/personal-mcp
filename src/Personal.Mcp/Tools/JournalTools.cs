@@ -291,6 +291,196 @@ public sealed class JournalTools
         }
     }
 
+    [McpServerTool, Description("Add a task or action item to the weekly journal under a configurable tasks heading (default: '## Tasks This Week') as a markdown checkbox. Useful for tracking action items from conversations.")]
+    public string AddJournalTask(
+        [Description("The task description to add.")] string taskDescription,
+        [Description("Name of the folder that contains the journal files, relative to vault root. Defaults to '1 Journal'.")] string? journalPath = null,
+        [Description("Target date in YYYY-MM-DD to determine which week. Optional; defaults to today.")] string? date = null,
+        [Description("Mark task as completed. Defaults to false (unchecked)."), DefaultValue(false)] bool completed = false)
+    {
+        if (string.IsNullOrWhiteSpace(taskDescription))
+        {
+            return "No task description provided.";
+        }
+
+        // Resolve default journal path
+        if (string.IsNullOrWhiteSpace(journalPath))
+        {
+            var cfg = _vault.GetVaultSetting("journalPath");
+            journalPath = string.IsNullOrWhiteSpace(cfg) ? "1 Journal" : cfg;
+        }
+
+        // Resolve tasks heading from vault settings or use default
+        string tasksHeading = _vault.GetVaultSetting("journalTasksHeading") ?? string.Empty;
+        if (string.IsNullOrWhiteSpace(tasksHeading))
+        {
+            tasksHeading = "## Tasks This Week";
+        }
+        else if (!tasksHeading.StartsWith("#"))
+        {
+            // Ensure heading starts with # if user didn't include it
+            tasksHeading = $"## {tasksHeading}";
+        }
+
+        try
+        {
+            DateTime targetDate = DateTime.Now;
+            if (!string.IsNullOrWhiteSpace(date) && DateTime.TryParse(date, out var parsed))
+            {
+                targetDate = parsed;
+            }
+
+            // Determine weekly file name (ISO week)
+            int isoYear = ISOWeek.GetYear(targetDate);
+            int isoWeek = ISOWeek.GetWeekOfYear(targetDate);
+            string weeklyFileName = $"{isoYear}-W{isoWeek:00}.md";
+
+            // Try to find existing weekly file
+            string? weeklyRelPath = null;
+            if (_vault.DirectoryExists(journalPath))
+            {
+                foreach (var (abs, rel) in _vault.EnumerateMarkdownFiles(journalPath))
+                {
+                    var fileName = _vault.GetFileName(rel);
+                    if (fileName.Equals(weeklyFileName, StringComparison.OrdinalIgnoreCase))
+                    {
+                        weeklyRelPath = rel;
+                        break;
+                    }
+                }
+            }
+
+            // If not found, create path
+            if (weeklyRelPath is null)
+            {
+                weeklyRelPath = $"{journalPath}/{isoYear}/{weeklyFileName}".Replace("\\", "/");
+            }
+
+            // Read existing content or create stub
+            string content;
+            var (exists, _, _) = _vault.GetNoteInfo(weeklyRelPath);
+            if (exists)
+            {
+                try
+                {
+                    content = _vault.ReadNoteRaw(weeklyRelPath);
+                }
+                catch
+                {
+                    content = CreateMinimalWeeklyStub(isoYear, isoWeek);
+                }
+            }
+            else
+            {
+                content = CreateMinimalWeeklyStub(isoYear, isoWeek);
+            }
+
+            var lines = new List<string>(content.Split(new[] { "\r\n", "\n" }, StringSplitOptions.None));
+
+            // Find the Tasks heading
+            int tasksIndex = lines.FindIndex(l => l.Trim().Equals(tasksHeading, StringComparison.Ordinal));
+            string checkbox = completed ? "[x]" : "[ ]";
+            string taskLine = $"- {checkbox} {taskDescription.Trim()}";
+
+            if (tasksIndex >= 0)
+            {
+                // Tasks section exists: insert after the heading (before next heading or end of section)
+                int insertIndex = tasksIndex + 1;
+                
+                // Skip any blank lines immediately after the heading
+                while (insertIndex < lines.Count && string.IsNullOrWhiteSpace(lines[insertIndex]))
+                {
+                    insertIndex++;
+                }
+                
+                // Find the end of the tasks section (next heading or end of file)
+                var headingRegex = new Regex(@"^##\s+", RegexOptions.Compiled);
+                while (insertIndex < lines.Count && !headingRegex.IsMatch(lines[insertIndex]))
+                {
+                    insertIndex++;
+                }
+                
+                // Insert the task at the end of the tasks section
+                lines.Insert(insertIndex, taskLine);
+            }
+            else
+            {
+                // Tasks section doesn't exist: create it after the title
+                // Find the main title (starts with #)
+                var titleRegex = new Regex(@"^#\s+", RegexOptions.Compiled);
+                int titleIndex = lines.FindIndex(l => titleRegex.IsMatch(l));
+                
+                if (titleIndex >= 0)
+                {
+                    // Insert after title and any blank lines
+                    int insertIndex = titleIndex + 1;
+                    while (insertIndex < lines.Count && string.IsNullOrWhiteSpace(lines[insertIndex]))
+                    {
+                        insertIndex++;
+                    }
+                    
+                    // Add blank line before tasks section if previous line has content
+                    if (insertIndex > 0 && !string.IsNullOrWhiteSpace(lines[insertIndex - 1]))
+                    {
+                        lines.Insert(insertIndex, string.Empty);
+                        insertIndex++;
+                    }
+                    
+                    lines.Insert(insertIndex, tasksHeading);
+                    lines.Insert(insertIndex + 1, string.Empty);
+                    lines.Insert(insertIndex + 2, taskLine);
+                    lines.Insert(insertIndex + 3, string.Empty);
+                }
+                else
+                {
+                    // No title found, append at end
+                    if (lines.Count > 0 && !string.IsNullOrWhiteSpace(lines[^1]))
+                    {
+                        lines.Add(string.Empty);
+                    }
+                    lines.Add(tasksHeading);
+                    lines.Add(string.Empty);
+                    lines.Add(taskLine);
+                }
+            }
+
+            // Write updated content
+            var updatedContent = string.Join(Environment.NewLine, lines);
+            try
+            {
+                _vault.WriteNote(weeklyRelPath, updatedContent, overwrite: true);
+            }
+            catch (Exception ex)
+            {
+                return $"Error writing journal task: {ex.Message}";
+            }
+
+            // Update search index
+            try
+            {
+                _index.UpdateFileByRel(weeklyRelPath);
+            }
+            catch
+            {
+                // Index update is non-critical
+            }
+
+            return $"Added task to {weeklyRelPath} under '{tasksHeading}'.";
+        }
+        catch (ArgumentException ex)
+        {
+            return $"Error: Invalid journal path - {ex.Message}";
+        }
+        catch (UnauthorizedAccessException ex)
+        {
+            return $"Error: Invalid journal path - {ex.Message}";
+        }
+        catch (Exception ex)
+        {
+            return $"Error adding journal task: {ex.Message}";
+        }
+    }
+
     private static string CreateMinimalWeeklyStub(int isoYear, int isoWeek)
     {
         var sb = new StringBuilder();

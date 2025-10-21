@@ -100,6 +100,76 @@ dotnet pack src/Personal.Mcp/Personal.Mcp.csproj -c Release -o ./nuget
 3. Inject `VaultService`, `IndexService` as needed via parameters
 4. Program.cs already calls `.WithToolsFromAssembly()` - no registration needed
 5. Return serializable object (anonymous type preferred)
+6. **CRITICAL: Create comprehensive unit tests** in `tests/Personal.Mcp.Tests/Tools/` (see Testing Guidelines below)
+
+### Testing Guidelines (MANDATORY)
+
+**Every new tool, feature, or modification MUST include unit tests.** Follow these rules:
+
+1. **Test File Location**: `tests/Personal.Mcp.Tests/Tools/[FeatureName]Tests.cs`
+2. **Test Class Structure**: Use nested classes for organization (see `JournalToolsTests.cs` as reference)
+3. **Required Test Coverage**:
+   - ✅ **Happy path**: Valid inputs produce expected outputs
+   - ✅ **Edge cases**: Boundary conditions, empty inputs, null values
+   - ✅ **Error handling**: Invalid paths, malformed data, permission errors
+   - ✅ **Integration**: Multi-step workflows combining multiple operations
+   - ✅ **Configuration**: Test with custom vault settings and defaults
+   - ✅ **Data validation**: Verify file content, structure, and formatting
+
+4. **Test Naming Convention**: `MethodName_Scenario_ExpectedResult`
+   - Example: `AddJournalTask_WithValidTask_AddsToTasksSection`
+   - Example: `AddJournalTask_WithEmptyDescription_ReturnsError`
+
+5. **Use TestVaultFixture**: Inherit from `IClassFixture<TestVaultFixture>` for isolated test vault
+6. **FluentAssertions**: Use `.Should()` syntax for readable assertions
+7. **Theory Tests**: Use `[Theory]` with `[InlineData]` for testing multiple scenarios
+
+**Example Test Structure**:
+```csharp
+public class FeatureToolsTests : IClassFixture<TestVaultFixture>
+{
+    private readonly TestVaultFixture _fixture;
+    private readonly FeatureTools _featureTools;
+
+    public FeatureToolsTests(TestVaultFixture fixture)
+    {
+        _fixture = fixture;
+        _featureTools = new FeatureTools(_fixture.VaultService, _fixture.IndexService);
+    }
+
+    public class MethodNameTests : FeatureToolsTests
+    {
+        public MethodNameTests(TestVaultFixture fixture) : base(fixture) { }
+
+        [Fact]
+        public void MethodName_WithValidInput_ReturnsExpectedResult()
+        {
+            // Arrange
+            var input = "test input";
+
+            // Act
+            var result = _featureTools.MethodName(input);
+
+            // Assert
+            result.Should().Contain("expected");
+        }
+
+        [Theory]
+        [InlineData("case1")]
+        [InlineData("case2")]
+        public void MethodName_WithVariousInputs_HandlesCorrectly(string input)
+        {
+            // Arrange, Act, Assert
+        }
+    }
+}
+```
+
+**Before Committing**:
+- ✅ All tests pass: `dotnet test`
+- ✅ New code has >80% coverage
+- ✅ Edge cases documented in test names
+- ✅ No manual testing only - automated tests required
 
 ### Debugging Links & Broken References
 - Link extraction uses regex: `@"\[\[([^\]|]+)(?:\|[^\]]+)?\]\]"` (captures wiki link target before `|` if present)
@@ -137,9 +207,15 @@ dotnet pack src/Personal.Mcp/Personal.Mcp.csproj -c Release -o ./nuget
 
 ## Testing & Validation
 
-- No unit tests yet (see `docs/port-details.md` - Next Steps #6)
-- Manual testing: set vault path, run locally, call tools via MCP client (VS Code + GitHub Copilot)
-- Test coverage needed: path safety, YAML round-trip, link rewrite edge cases, index updates
+- **Test Framework**: xUnit with FluentAssertions for readable assertions
+- **Test Location**: `tests/Personal.Mcp.Tests/` with structure mirroring `src/Personal.Mcp/`
+- **Test Execution**: `dotnet test` or `.\scripts\test.ps1`
+- **Coverage Goal**: >80% code coverage for all new features
+- **Test Vault**: `TestVaultFixture` provides isolated test environment with in-memory filesystem
+- **Continuous Testing**: Tests run automatically in CI/CD pipeline
+- **Manual Testing**: Use MCP client (VS Code + GitHub Copilot) for integration validation after automated tests pass
+
+**See Testing Guidelines section above for mandatory testing requirements.**
 
 
 

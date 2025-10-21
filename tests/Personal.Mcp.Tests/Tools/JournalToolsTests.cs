@@ -573,4 +573,363 @@ public class JournalToolsTests : IClassFixture<TestVaultFixture>
             content.Should().Contain("Friday entry");
         }
     }
+
+    public class AddJournalTaskTests : JournalToolsTests
+    {
+        public AddJournalTaskTests(TestVaultFixture fixture) : base(fixture) { }
+
+        [Fact]
+        public void AddJournalTask_WithValidTask_AddsToTasksSection()
+        {
+            // Arrange
+            var taskDescription = "Review PR for authentication feature";
+            var testDate = "2025-10-14"; // Tuesday of Week 42
+
+            // Act
+            var result = _journalTools.AddJournalTask(taskDescription, date: testDate);
+
+            // Assert
+            result.Should().Contain("Added task to");
+            result.Should().Contain("2025-W42.md");
+            result.Should().Contain("## Tasks This Week");
+
+            // Verify the task was actually added
+            var journalContent = _fixture.VaultService.ReadNoteRaw("1 Journal/2025/2025-W42.md");
+            journalContent.Should().Contain("## Tasks This Week");
+            journalContent.Should().Contain("- [ ] Review PR for authentication feature");
+        }
+
+        [Fact]
+        public void AddJournalTask_WithCompletedFlag_AddsCheckedTask()
+        {
+            // Arrange
+            var taskDescription = "Fix bug in login flow";
+            var testDate = "2025-10-14";
+
+            // Act
+            var result = _journalTools.AddJournalTask(taskDescription, date: testDate, completed: true);
+
+            // Assert
+            result.Should().Contain("Added task to");
+
+            var journalContent = _fixture.VaultService.ReadNoteRaw("1 Journal/2025/2025-W42.md");
+            journalContent.Should().Contain("- [x] Fix bug in login flow");
+        }
+
+        [Fact]
+        public void AddJournalTask_CreatesTasksSectionAfterTitle()
+        {
+            // Arrange - Create a new weekly file with just a title
+            var newWeekDate = "2025-11-24"; // Week 48
+            var taskDescription = "First task for this week";
+
+            // Act
+            var result = _journalTools.AddJournalTask(taskDescription, date: newWeekDate);
+
+            // Assert
+            result.Should().Contain("Added task to");
+            result.Should().Contain("2025-W48.md");
+
+            var content = _fixture.VaultService.ReadNoteRaw("1 Journal/2025/2025-W48.md");
+            
+            // Tasks section should be created after the title
+            var titleIndex = content.IndexOf("# Week 48 in 2025");
+            var tasksIndex = content.IndexOf("## Tasks This Week");
+            
+            titleIndex.Should().BeGreaterThan(-1);
+            tasksIndex.Should().BeGreaterThan(-1);
+            tasksIndex.Should().BeGreaterThan(titleIndex, "Tasks section should come after title");
+            
+            content.Should().Contain("- [ ] First task for this week");
+        }
+
+        [Fact]
+        public void AddJournalTask_MultipleTasksSameWeek_AppendsToTasksSection()
+        {
+            // Arrange
+            var testDate = "2025-10-15"; // Wednesday of Week 42
+            var task1 = "Task one";
+            var task2 = "Task two";
+            var task3 = "Task three";
+
+            // Act
+            _journalTools.AddJournalTask(task1, date: testDate);
+            _journalTools.AddJournalTask(task2, date: testDate);
+            _journalTools.AddJournalTask(task3, date: testDate);
+
+            // Assert
+            var content = _fixture.VaultService.ReadNoteRaw("1 Journal/2025/2025-W42.md");
+            
+            content.Should().Contain("## Tasks This Week");
+            content.Should().Contain("- [ ] Task one");
+            content.Should().Contain("- [ ] Task two");
+            content.Should().Contain("- [ ] Task three");
+
+            // Verify all tasks are under the Tasks section
+            var tasksIndex = content.IndexOf("## Tasks This Week");
+            var task1Index = content.IndexOf("- [ ] Task one");
+            var task2Index = content.IndexOf("- [ ] Task two");
+            var task3Index = content.IndexOf("- [ ] Task three");
+
+            task1Index.Should().BeGreaterThan(tasksIndex);
+            task2Index.Should().BeGreaterThan(task1Index);
+            task3Index.Should().BeGreaterThan(task2Index);
+        }
+
+        [Fact]
+        public void AddJournalTask_WithEmptyDescription_ReturnsError()
+        {
+            // Act
+            var result = _journalTools.AddJournalTask("");
+
+            // Assert
+            result.Should().Be("No task description provided.");
+        }
+
+        [Fact]
+        public void AddJournalTask_WithWhitespaceDescription_ReturnsError()
+        {
+            // Act
+            var result = _journalTools.AddJournalTask("   ");
+
+            // Assert
+            result.Should().Be("No task description provided.");
+        }
+
+        [Fact]
+        public void AddJournalTask_WithCustomJournalPath_UsesSpecifiedPath()
+        {
+            // Arrange
+            var customPath = "CustomJournal";
+            var taskDescription = "Custom path task";
+            
+            // Create the directory
+            var placeholderPath = $"{customPath}/.gitkeep";
+            _fixture.VaultService.WriteNote(placeholderPath, string.Empty, overwrite: true);
+            Thread.Sleep(50);
+
+            // Act
+            var result = _journalTools.AddJournalTask(taskDescription, journalPath: customPath);
+
+            // Assert
+            result.Should().Contain("Added task to");
+            result.Should().Contain($"{customPath}/");
+        }
+
+        [Fact]
+        public void AddJournalTask_WithCurrentDate_AddsToCorrectWeek()
+        {
+            // Arrange
+            var taskDescription = "Current week task";
+            var today = DateTime.Now;
+
+            // Act
+            var result = _journalTools.AddJournalTask(taskDescription);
+
+            // Assert
+            result.Should().Contain("Added task to");
+
+            // Calculate expected week file
+            var isoYear = ISOWeek.GetYear(today);
+            var isoWeek = ISOWeek.GetWeekOfYear(today);
+            var expectedFile = $"1 Journal/{isoYear}/{isoYear}-W{isoWeek:00}.md";
+
+            // Verify the task was added
+            var (exists, _, _) = _fixture.VaultService.GetNoteInfo(expectedFile);
+            exists.Should().BeTrue("the journal file should have been created");
+
+            var content = _fixture.VaultService.ReadNoteRaw(expectedFile);
+            content.Should().Contain("- [ ] Current week task");
+        }
+
+        [Fact]
+        public void AddJournalTask_WithConfiguredTasksHeading_UsesCustomHeading()
+        {
+            // Arrange - Set custom tasks heading in vault settings
+            var settingsPath = Path.Combine(_fixture.VaultPath, "mcp-settings.md");
+            var settingsContent = "---\njournalTasksHeading: \"## Action Items\"\n---\nVault settings";
+            _fixture.FileSystem.File.WriteAllText(settingsPath, settingsContent);
+
+            var taskDescription = "Task with custom heading";
+            var testDate = "2025-10-16";
+
+            try
+            {
+                // Act
+                var result = _journalTools.AddJournalTask(taskDescription, date: testDate);
+
+                // Assert
+                result.Should().Contain("Added task to");
+                result.Should().Contain("## Action Items");
+
+                var content = _fixture.VaultService.ReadNoteRaw("1 Journal/2025/2025-W42.md");
+                content.Should().Contain("## Action Items");
+                content.Should().Contain("- [ ] Task with custom heading");
+            }
+            finally
+            {
+                // Cleanup
+                if (_fixture.FileSystem.File.Exists(settingsPath))
+                {
+                    _fixture.FileSystem.File.Delete(settingsPath);
+                }
+            }
+        }
+
+        [Fact]
+        public void AddJournalTask_WithHeadingWithoutHashMarks_AddsHashMarks()
+        {
+            // Arrange - Set custom tasks heading without ## prefix
+            var settingsPath = Path.Combine(_fixture.VaultPath, "mcp-settings.md");
+            var settingsContent = "---\njournalTasksHeading: \"My Tasks\"\n---\nVault settings";
+            _fixture.FileSystem.File.WriteAllText(settingsPath, settingsContent);
+
+            var taskDescription = "Task with auto-formatted heading";
+            var testDate = "2025-10-16";
+
+            try
+            {
+                // Act
+                var result = _journalTools.AddJournalTask(taskDescription, date: testDate);
+
+                // Assert
+                result.Should().Contain("Added task to");
+
+                var content = _fixture.VaultService.ReadNoteRaw("1 Journal/2025/2025-W42.md");
+                content.Should().Contain("## My Tasks");
+                content.Should().Contain("- [ ] Task with auto-formatted heading");
+            }
+            finally
+            {
+                // Cleanup
+                if (_fixture.FileSystem.File.Exists(settingsPath))
+                {
+                    _fixture.FileSystem.File.Delete(settingsPath);
+                }
+            }
+        }
+
+        [Theory]
+        [InlineData("2025-01-01")]
+        [InlineData("2025-12-31")]
+        [InlineData("2025-06-15")]
+        public void AddJournalTask_WithVariousDates_HandlesCorrectly(string dateString)
+        {
+            // Arrange
+            var taskDescription = $"Task for {dateString}";
+
+            // Act
+            var result = _journalTools.AddJournalTask(taskDescription, date: dateString);
+
+            // Assert
+            result.Should().Contain("Added task to");
+            result.Should().NotContain("Error");
+
+            // Verify task was added
+            var parsedDate = DateTime.Parse(dateString);
+            var isoYear = ISOWeek.GetYear(parsedDate);
+            var isoWeek = ISOWeek.GetWeekOfYear(parsedDate);
+            var expectedFile = $"1 Journal/{isoYear}/{isoYear}-W{isoWeek:00}.md";
+
+            var content = _fixture.VaultService.ReadNoteRaw(expectedFile);
+            content.Should().Contain($"- [ ] Task for {dateString}");
+        }
+
+        [Fact]
+        public void AddJournalTask_MixedTasksWithEntries_MaintainsStructure()
+        {
+            // Arrange
+            var testDate = "2025-10-17"; // Friday of Week 42
+            var journalEntry = "Meeting notes from morning standup";
+            var task1 = "Follow up on action item from meeting";
+            var task2 = "Schedule 1:1 with team member";
+
+            // Act - Add tasks and entries in mixed order
+            _journalTools.AddJournalTask(task1, date: testDate);
+            _journalTools.AddJournalEntry(journalEntry, date: testDate);
+            _journalTools.AddJournalTask(task2, date: testDate);
+
+            // Assert
+            var content = _fixture.VaultService.ReadNoteRaw("1 Journal/2025/2025-W42.md");
+
+            // Verify structure: Tasks section should exist
+            content.Should().Contain("## Tasks This Week");
+            content.Should().Contain("- [ ] Follow up on action item from meeting");
+            content.Should().Contain("- [ ] Schedule 1:1 with team member");
+
+            // Day section should also exist
+            content.Should().Contain("## 17 Friday");
+            content.Should().Contain("Meeting notes from morning standup");
+
+            // Tasks section should come before day sections
+            var tasksIndex = content.IndexOf("## Tasks This Week");
+            var dayIndex = content.IndexOf("## 17 Friday");
+            tasksIndex.Should().BeLessThan(dayIndex, "Tasks section should come before day sections");
+        }
+
+        [Theory]
+        [InlineData("invalid-date")]
+        [InlineData("2025-13-01")] // Invalid month
+        [InlineData("not-a-date")]
+        public void AddJournalTask_WithInvalidDate_FallsBackToCurrentDate(string invalidDate)
+        {
+            // Arrange
+            var taskDescription = "Task with invalid date";
+
+            // Act
+            var result = _journalTools.AddJournalTask(taskDescription, date: invalidDate);
+
+            // Assert - Should fall back to current date without crashing
+            result.Should().Contain("Added task to");
+            result.Should().NotContain("Error");
+
+            // Should use current date
+            var today = DateTime.Now;
+            var expectedWeek = ISOWeek.GetWeekOfYear(today);
+            var expectedYear = ISOWeek.GetYear(today);
+            result.Should().Contain($"{expectedYear}-W{expectedWeek:00}.md");
+        }
+
+        [Fact]
+        public void AddJournalTask_WithInvalidJournalPath_ReturnsError()
+        {
+            // Act - Try a path that would escape the vault
+            var result = _journalTools.AddJournalTask(
+                "Test task",
+                journalPath: "../InvalidPath");
+
+            // Assert
+            result.Should().Contain("Error");
+        }
+
+        [Fact]
+        public void AddJournalTask_TasksAppearInCorrectOrder()
+        {
+            // Arrange
+            var testDate = "2025-10-18"; // Saturday of Week 42
+            var tasks = new[] { "First task", "Second task", "Third task" };
+
+            // Act
+            foreach (var task in tasks)
+            {
+                _journalTools.AddJournalTask(task, date: testDate);
+            }
+
+            // Assert
+            var content = _fixture.VaultService.ReadNoteRaw("1 Journal/2025/2025-W42.md");
+
+            // Find positions
+            var firstIndex = content.IndexOf("- [ ] First task");
+            var secondIndex = content.IndexOf("- [ ] Second task");
+            var thirdIndex = content.IndexOf("- [ ] Third task");
+
+            firstIndex.Should().BeGreaterThan(-1);
+            secondIndex.Should().BeGreaterThan(-1);
+            thirdIndex.Should().BeGreaterThan(-1);
+
+            // Verify sequential order
+            firstIndex.Should().BeLessThan(secondIndex);
+            secondIndex.Should().BeLessThan(thirdIndex);
+        }
+    }
 }
