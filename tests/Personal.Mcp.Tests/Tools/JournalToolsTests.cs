@@ -224,9 +224,10 @@ public class JournalToolsTests : IClassFixture<TestVaultFixture>
             var customPath = "CustomJournal";
             var entryContent = "Custom path entry";
             
-            // Create the directory at test runtime using VaultService path validation
-            var fullCustomPath = Path.Combine(_fixture.VaultPath, customPath);
-            Directory.CreateDirectory(fullCustomPath);
+            // Create the directory at test runtime using VaultService
+            // First create a placeholder file to ensure the directory exists
+            var placeholderPath = $"{customPath}/.gitkeep";
+            _fixture.VaultService.WriteNote(placeholderPath, string.Empty, overwrite: true);
             
             // Add a small delay to ensure filesystem operations complete
             Thread.Sleep(50);
