@@ -14,6 +14,11 @@ public sealed class JournalTools
     private readonly IVaultService _vault;
     private readonly IndexService _index;
 
+    // Format strings for journal entries
+    private const string TimeFormat = "HH:mm";
+    private const string DefaultJournalPath = "1 Journal";
+    private const string DefaultTasksHeading = "## Tasks This Week";
+
     public JournalTools(IVaultService vault, IndexService index)
     {
         _vault = vault;
@@ -28,12 +33,7 @@ public sealed class JournalTools
         [Description("Maximum number of entries to return, newest first.")] int maxEntries = 10,
         [Description("Include full content (true) or just list paths and dates (false)."), DefaultValue(true)] bool includeContent = true)
     {
-        // Resolve default journal path using vault-level settings then environment variable, otherwise fall back to hard-coded default
-        if (string.IsNullOrWhiteSpace(journalPath))
-        {
-            var cfg = _vault.GetVaultSetting("journalPath");
-            journalPath = string.IsNullOrWhiteSpace(cfg) ? "1 Journal" : cfg;
-        }
+        journalPath = ResolveJournalPath(journalPath);
 
         DateTime? from = TryParseDate(fromDate);
         DateTime? to = TryParseDate(toDate);
@@ -113,12 +113,7 @@ public sealed class JournalTools
             return "No content provided.";
         }
 
-        // Resolve default journal path using vault settings/env variable if not provided
-        if (string.IsNullOrWhiteSpace(journalPath))
-        {
-            var cfg = _vault.GetVaultSetting("journalPath");
-            journalPath = string.IsNullOrWhiteSpace(cfg) ? "1 Journal" : cfg;
-        }
+        journalPath = ResolveJournalPath(journalPath);
 
         try
         {
@@ -131,162 +126,101 @@ public sealed class JournalTools
             // Determine weekly file name (ISO week)
             int isoYear = ISOWeek.GetYear(targetDate);
             int isoWeek = ISOWeek.GetWeekOfYear(targetDate);
-            string weeklyFileName = $"{isoYear}-W{isoWeek:00}.md";
 
-            // Try to find an existing weekly file using VaultService
-            string? weeklyRelPath = null;
-            
-            // Only check if journal path exists if we're looking for existing files
-            if (_vault.DirectoryExists(journalPath))
+            // Find or construct the path to the weekly file
+            string weeklyRelPath = ResolveWeeklyFilePath(journalPath, isoYear, isoWeek);
+
+            // Load existing content or create new stub
+            string content = LoadOrCreateWeeklyContent(weeklyRelPath, isoYear, isoWeek);
+
+            // Build the heading for the given day within the week, e.g., '## 14 Thursday'
+            string heading = $"## {targetDate.Day} {targetDate:dddd}";
+            var lines = new List<string>(content.Split(new[] { "\r\n", "\n" }, StringSplitOptions.None));
+
+            // Find the heading line index
+            int headingIndex = lines.FindIndex(l => l.Trim().Equals(heading, StringComparison.Ordinal));
+            string entryToInsert = entryContent.TrimEnd();
+            string timePrefix = DateTime.Now.ToString(TimeFormat, CultureInfo.InvariantCulture);
+
+            if (headingIndex >= 0)
             {
-                foreach (var (abs, rel) in _vault.EnumerateMarkdownFiles(journalPath))
+                // Heading exists: Insert after the last line of this section (until next day section or end)
+                int insertIndex = headingIndex + 1;
+                while (insertIndex < lines.Count && !DaySectionHeaderRegex.IsMatch(lines[insertIndex]))
                 {
-                    var fileName = _vault.GetFileName(rel);
-                    if (fileName.Equals(weeklyFileName, StringComparison.OrdinalIgnoreCase))
-                    {
-                        weeklyRelPath = rel;
-                        break;
-                    }
+                    insertIndex++;
                 }
-            }
-
-            // If not found, create path in default location: <journalPath>/<year>/<year>-Www.md
-            if (weeklyRelPath is null)
-            {
-                weeklyRelPath = $"{journalPath}/{isoYear}/{weeklyFileName}".Replace("\\", "/");
-            }
-
-            // Read existing content or create stub using VaultService
-            string content;
-            var (exists, _, _) = _vault.GetNoteInfo(weeklyRelPath);
-            if (exists)
-        {
-            try
-            {
-                content = _vault.ReadNoteRaw(weeklyRelPath);
-            }
-            catch
-            {
-                content = CreateMinimalWeeklyStub(isoYear, isoWeek);
-            }
-        }
-        else
-        {
-            content = CreateMinimalWeeklyStub(isoYear, isoWeek);
-        }
-
-        // Build the heading for the given day within the week, e.g., '## 14 Thursday'
-        string heading = $"## {targetDate.Day} {targetDate:dddd}";
-        var lines = new List<string>(content.Split(new[] { "\r\n", "\n" }, StringSplitOptions.None));
-
-        // Find the heading line index
-        int headingIndex = lines.FindIndex(l => l.Trim().Equals(heading, StringComparison.Ordinal));
-        string entryToInsert = entryContent.TrimEnd();
-        string timePrefix = DateTime.Now.ToString("HH:mm", CultureInfo.InvariantCulture);
-
-        if (headingIndex >= 0)
-        {
-            // Heading exists: Insert after the last line of this section (until next '## ' or end)
-            int insertIndex = headingIndex + 1;
-            var sectionHeaderRegex = new Regex(@"^##\s+\d{1,2}\s+\w+\s*$", RegexOptions.Compiled);
-            while (insertIndex < lines.Count && !sectionHeaderRegex.IsMatch(lines[insertIndex]))
-            {
-                insertIndex++;
-            }
-            // Only add a blank line if the previous line is the heading itself; otherwise append directly
-            if (insertIndex == headingIndex + 1)
-            {
-                // First entry under this heading: ensure one blank line after the heading for readability
-                lines.Insert(insertIndex, string.Empty);
-                insertIndex++;
-            }
-            lines.Insert(insertIndex, $"- {timePrefix} - {entryToInsert}");
-        }
-        else
-        {
-            // Heading not found: find correct insertion point to maintain sequential day order
-            var sectionHeaderRegex = new Regex(@"^##\s+(\d{1,2})\s+\w+\s*$", RegexOptions.Compiled);
-            int targetDay = targetDate.Day;
-            int insertBeforeIndex = -1;
-
-            // Find all day headings and their line indices
-            for (int i = 0; i < lines.Count; i++)
-            {
-                var match = sectionHeaderRegex.Match(lines[i]);
-                if (match.Success && int.TryParse(match.Groups[1].Value, out int dayNum))
+                // Only add a blank line if the previous line is the heading itself; otherwise append directly
+                if (insertIndex == headingIndex + 1)
                 {
-                    if (dayNum > targetDay)
-                    {
-                        // Found a day that comes after our target day
-                        insertBeforeIndex = i;
-                        break;
-                    }
+                    // First entry under this heading: ensure one blank line after the heading for readability
+                    lines.Insert(insertIndex, string.Empty);
+                    insertIndex++;
                 }
-            }
-
-            if (insertBeforeIndex >= 0)
-            {
-                // Insert the new heading before the found heading (with proper spacing)
-                // Add blank line before if previous line has content
-                if (insertBeforeIndex > 0 && !string.IsNullOrWhiteSpace(lines[insertBeforeIndex - 1]))
-                {
-                    lines.Insert(insertBeforeIndex, string.Empty);
-                    insertBeforeIndex++;
-                }
-                lines.Insert(insertBeforeIndex, heading);
-                lines.Insert(insertBeforeIndex + 1, string.Empty);
-                lines.Insert(insertBeforeIndex + 2, $"- {timePrefix} - {entryToInsert}");
-                lines.Insert(insertBeforeIndex + 3, string.Empty); // Blank line after section
+                lines.Insert(insertIndex, $"- {timePrefix} - {entryToInsert}");
             }
             else
             {
-                // No later days found: append at end
-                if (lines.Count > 0 && !string.IsNullOrWhiteSpace(lines[^1]))
+                // Heading not found: find correct insertion point to maintain sequential day order
+                int targetDay = targetDate.Day;
+                int insertBeforeIndex = -1;
+
+                // Find all day headings and their line indices
+                for (int i = 0; i < lines.Count; i++)
                 {
-                    lines.Add(string.Empty);
+                    var match = DaySectionHeaderWithCaptureRegex.Match(lines[i]);
+                    if (match.Success && int.TryParse(match.Groups[1].Value, out int dayNum))
+                    {
+                        if (dayNum > targetDay)
+                        {
+                            // Found a day that comes after our target day
+                            insertBeforeIndex = i;
+                            break;
+                        }
+                    }
                 }
-                lines.Add(heading);
-                lines.Add(string.Empty);
-                lines.Add($"- {timePrefix} - {entryToInsert}");
+
+                if (insertBeforeIndex >= 0)
+                {
+                    // Insert the new heading before the found heading (with proper spacing)
+                    // Add blank line before if previous line has content
+                    if (insertBeforeIndex > 0 && !string.IsNullOrWhiteSpace(lines[insertBeforeIndex - 1]))
+                    {
+                        lines.Insert(insertBeforeIndex, string.Empty);
+                        insertBeforeIndex++;
+                    }
+                    lines.Insert(insertBeforeIndex, heading);
+                    lines.Insert(insertBeforeIndex + 1, string.Empty);
+                    lines.Insert(insertBeforeIndex + 2, $"- {timePrefix} - {entryToInsert}");
+                    lines.Insert(insertBeforeIndex + 3, string.Empty); // Blank line after section
+                }
+                else
+                {
+                    // No later days found: append at end
+                    if (lines.Count > 0 && !string.IsNullOrWhiteSpace(lines[^1]))
+                    {
+                        lines.Add(string.Empty);
+                    }
+                    lines.Add(heading);
+                    lines.Add(string.Empty);
+                    lines.Add($"- {timePrefix} - {entryToInsert}");
+                }
             }
-        }
 
-        // Write using VaultService (creates directories automatically)
-        var updatedContent = string.Join(Environment.NewLine, lines);
-        try
-        {
-            _vault.WriteNote(weeklyRelPath, updatedContent, overwrite: true);
-        }
-        catch (Exception ex)
-        {
-            return $"Error writing journal entry: {ex.Message}";
-        }
-
-        // Update the search index
-        try
-        {
-            _index.UpdateFileByRel(weeklyRelPath);
-        }
-        catch
-        {
-            // Index update is non-critical; continue
-        }
-
-        return $"Added entry to {weeklyRelPath} under '{heading}'.";
+            // Write using VaultService and update index
+            var updatedContent = string.Join(Environment.NewLine, lines);
+            return WriteJournalContent(weeklyRelPath, updatedContent, $"Added entry to {weeklyRelPath} under '{heading}'.");
         }
         catch (ArgumentException ex)
         {
-            // Path validation errors (e.g., contains "..", starts with "/", escapes vault)
             return $"Error: Invalid journal path - {ex.Message}";
         }
         catch (UnauthorizedAccessException ex)
         {
-            // Path escapes vault
             return $"Error: Invalid journal path - {ex.Message}";
         }
         catch (Exception ex)
         {
-            // Any other unexpected errors
             return $"Error adding journal entry: {ex.Message}";
         }
     }
@@ -303,18 +237,13 @@ public sealed class JournalTools
             return "No task description provided.";
         }
 
-        // Resolve default journal path
-        if (string.IsNullOrWhiteSpace(journalPath))
-        {
-            var cfg = _vault.GetVaultSetting("journalPath");
-            journalPath = string.IsNullOrWhiteSpace(cfg) ? "1 Journal" : cfg;
-        }
+        journalPath = ResolveJournalPath(journalPath);
 
         // Resolve tasks heading from vault settings or use default
         string tasksHeading = _vault.GetVaultSetting("journalTasksHeading") ?? string.Empty;
         if (string.IsNullOrWhiteSpace(tasksHeading))
         {
-            tasksHeading = "## Tasks This Week";
+            tasksHeading = DefaultTasksHeading;
         }
         else if (!tasksHeading.StartsWith("#"))
         {
@@ -333,47 +262,12 @@ public sealed class JournalTools
             // Determine weekly file name (ISO week)
             int isoYear = ISOWeek.GetYear(targetDate);
             int isoWeek = ISOWeek.GetWeekOfYear(targetDate);
-            string weeklyFileName = $"{isoYear}-W{isoWeek:00}.md";
 
-            // Try to find existing weekly file
-            string? weeklyRelPath = null;
-            if (_vault.DirectoryExists(journalPath))
-            {
-                foreach (var (abs, rel) in _vault.EnumerateMarkdownFiles(journalPath))
-                {
-                    var fileName = _vault.GetFileName(rel);
-                    if (fileName.Equals(weeklyFileName, StringComparison.OrdinalIgnoreCase))
-                    {
-                        weeklyRelPath = rel;
-                        break;
-                    }
-                }
-            }
+            // Find or construct the path to the weekly file
+            string weeklyRelPath = ResolveWeeklyFilePath(journalPath, isoYear, isoWeek);
 
-            // If not found, create path
-            if (weeklyRelPath is null)
-            {
-                weeklyRelPath = $"{journalPath}/{isoYear}/{weeklyFileName}".Replace("\\", "/");
-            }
-
-            // Read existing content or create stub
-            string content;
-            var (exists, _, _) = _vault.GetNoteInfo(weeklyRelPath);
-            if (exists)
-            {
-                try
-                {
-                    content = _vault.ReadNoteRaw(weeklyRelPath);
-                }
-                catch
-                {
-                    content = CreateMinimalWeeklyStub(isoYear, isoWeek);
-                }
-            }
-            else
-            {
-                content = CreateMinimalWeeklyStub(isoYear, isoWeek);
-            }
+            // Load existing content or create new stub
+            string content = LoadOrCreateWeeklyContent(weeklyRelPath, isoYear, isoWeek);
 
             var lines = new List<string>(content.Split(new[] { "\r\n", "\n" }, StringSplitOptions.None));
 
@@ -386,86 +280,31 @@ public sealed class JournalTools
             {
                 // Tasks section exists: insert after the heading (before next heading or end of section)
                 int insertIndex = tasksIndex + 1;
-                
+
                 // Skip any blank lines immediately after the heading
                 while (insertIndex < lines.Count && string.IsNullOrWhiteSpace(lines[insertIndex]))
                 {
                     insertIndex++;
                 }
-                
+
                 // Find the end of the tasks section (next heading or end of file)
-                var headingRegex = new Regex(@"^##\s+", RegexOptions.Compiled);
-                while (insertIndex < lines.Count && !headingRegex.IsMatch(lines[insertIndex]))
+                while (insertIndex < lines.Count && !Level2HeadingRegex.IsMatch(lines[insertIndex]))
                 {
                     insertIndex++;
                 }
-                
+
                 // Insert the task at the end of the tasks section
                 lines.Insert(insertIndex, taskLine);
             }
             else
             {
                 // Tasks section doesn't exist: create it after the title
-                // Find the main title (starts with #)
-                var titleRegex = new Regex(@"^#\s+", RegexOptions.Compiled);
-                int titleIndex = lines.FindIndex(l => titleRegex.IsMatch(l));
-                
-                if (titleIndex >= 0)
-                {
-                    // Insert after title and any blank lines
-                    int insertIndex = titleIndex + 1;
-                    while (insertIndex < lines.Count && string.IsNullOrWhiteSpace(lines[insertIndex]))
-                    {
-                        insertIndex++;
-                    }
-                    
-                    // Add blank line before tasks section if previous line has content
-                    if (insertIndex > 0 && !string.IsNullOrWhiteSpace(lines[insertIndex - 1]))
-                    {
-                        lines.Insert(insertIndex, string.Empty);
-                        insertIndex++;
-                    }
-                    
-                    lines.Insert(insertIndex, tasksHeading);
-                    lines.Insert(insertIndex + 1, string.Empty);
-                    lines.Insert(insertIndex + 2, taskLine);
-                    lines.Insert(insertIndex + 3, string.Empty);
-                }
-                else
-                {
-                    // No title found, append at end
-                    if (lines.Count > 0 && !string.IsNullOrWhiteSpace(lines[^1]))
-                    {
-                        lines.Add(string.Empty);
-                    }
-                    lines.Add(tasksHeading);
-                    lines.Add(string.Empty);
-                    lines.Add(taskLine);
-                }
+                InsertNewSection(lines, tasksHeading, taskLine);
             }
 
-            // Write updated content
+            // Write updated content and update index
             var updatedContent = string.Join(Environment.NewLine, lines);
-            try
-            {
-                _vault.WriteNote(weeklyRelPath, updatedContent, overwrite: true);
-            }
-            catch (Exception ex)
-            {
-                return $"Error writing journal task: {ex.Message}";
-            }
-
-            // Update search index
-            try
-            {
-                _index.UpdateFileByRel(weeklyRelPath);
-            }
-            catch
-            {
-                // Index update is non-critical
-            }
-
-            return $"Added task to {weeklyRelPath} under '{tasksHeading}'.";
+            return WriteJournalContent(weeklyRelPath, updatedContent, $"Added task to {weeklyRelPath} under '{tasksHeading}'.");
         }
         catch (ArgumentException ex)
         {
@@ -478,6 +317,143 @@ public sealed class JournalTools
         catch (Exception ex)
         {
             return $"Error adding journal task: {ex.Message}";
+        }
+    }
+
+    /// <summary>
+    /// Resolves the journal path from parameter or vault settings.
+    /// </summary>
+    private string ResolveJournalPath(string? journalPath)
+    {
+        if (!string.IsNullOrWhiteSpace(journalPath))
+            return journalPath;
+
+        var cfg = _vault.GetVaultSetting("journalPath");
+        return string.IsNullOrWhiteSpace(cfg) ? DefaultJournalPath : cfg;
+    }
+
+    /// <summary>
+    /// Finds or constructs the path to the weekly journal file for a given ISO week.
+    /// </summary>
+    private string ResolveWeeklyFilePath(string journalPath, int isoYear, int isoWeek)
+    {
+        string weeklyFileName = $"{isoYear}-W{isoWeek:00}.md";
+
+        // Try direct paths first (most common locations)
+        var candidatePaths = new[]
+        {
+            $"{journalPath}/{isoYear}/{weeklyFileName}",
+            $"{journalPath}/{weeklyFileName}"
+        };
+
+        foreach (var path in candidatePaths)
+        {
+            var (exists, _, _) = _vault.GetNoteInfo(path);
+            if (exists)
+                return path;
+        }
+
+        // Fallback to enumeration if not found in common locations
+        if (_vault.DirectoryExists(journalPath))
+        {
+            foreach (var (_, rel) in _vault.EnumerateMarkdownFiles(journalPath))
+            {
+                if (_vault.GetFileName(rel).Equals(weeklyFileName, StringComparison.OrdinalIgnoreCase))
+                    return rel;
+            }
+        }
+
+        // Return default path for creation
+        return $"{journalPath}/{isoYear}/{weeklyFileName}".Replace("\\", "/");
+    }
+
+    /// <summary>
+    /// Loads existing weekly content or creates a new stub if file doesn't exist.
+    /// </summary>
+    private string LoadOrCreateWeeklyContent(string weeklyRelPath, int isoYear, int isoWeek)
+    {
+        var (exists, _, _) = _vault.GetNoteInfo(weeklyRelPath);
+        if (exists)
+        {
+            try
+            {
+                return _vault.ReadNoteRaw(weeklyRelPath);
+            }
+            catch
+            {
+                return CreateMinimalWeeklyStub(isoYear, isoWeek);
+            }
+        }
+        return CreateMinimalWeeklyStub(isoYear, isoWeek);
+    }
+
+    /// <summary>
+    /// Writes content to the journal file and updates the search index.
+    /// </summary>
+    private string WriteJournalContent(string weeklyRelPath, string content, string successMessage)
+    {
+        try
+        {
+            _vault.WriteNote(weeklyRelPath, content, overwrite: true);
+        }
+        catch (Exception ex)
+        {
+            return $"Error writing journal content: {ex.Message}";
+        }
+
+        // Update the search index (non-critical operation)
+        try
+        {
+            _index.UpdateFileByRel(weeklyRelPath);
+        }
+        catch
+        {
+            // Index update is non-critical; continue
+        }
+
+        return successMessage;
+    }
+
+    /// <summary>
+    /// Inserts a new section with heading and content line into the document.
+    /// If a title is found, inserts after it. Otherwise appends to the end.
+    /// </summary>
+    private static void InsertNewSection(List<string> lines, string sectionHeading, string contentLine)
+    {
+        // Find the main title (starts with #)
+        int titleIndex = lines.FindIndex(l => TitleHeadingRegex.IsMatch(l));
+
+        if (titleIndex >= 0)
+        {
+            // Insert after title and any blank lines
+            int insertIndex = titleIndex + 1;
+            while (insertIndex < lines.Count && string.IsNullOrWhiteSpace(lines[insertIndex]))
+            {
+                insertIndex++;
+            }
+
+            // Add blank line before section if previous line has content
+            if (insertIndex > 0 && !string.IsNullOrWhiteSpace(lines[insertIndex - 1]))
+            {
+                lines.Insert(insertIndex, string.Empty);
+                insertIndex++;
+            }
+
+            lines.Insert(insertIndex, sectionHeading);
+            lines.Insert(insertIndex + 1, string.Empty);
+            lines.Insert(insertIndex + 2, contentLine);
+            lines.Insert(insertIndex + 3, string.Empty);
+        }
+        else
+        {
+            // No title found, append at end
+            if (lines.Count > 0 && !string.IsNullOrWhiteSpace(lines[^1]))
+            {
+                lines.Add(string.Empty);
+            }
+            lines.Add(sectionHeading);
+            lines.Add(string.Empty);
+            lines.Add(contentLine);
         }
     }
 
@@ -504,6 +480,24 @@ public sealed class JournalTools
     private static readonly Regex IsoWeekRegex = new(
         pattern: @"(?<!\d)(\d{4})[-/]W(\d{2})(?!\d)",
         options: RegexOptions.Compiled | RegexOptions.CultureInvariant | RegexOptions.IgnoreCase);
+
+    // Regex patterns for day section headings (e.g., "## 14 Thursday")
+    private static readonly Regex DaySectionHeaderRegex = new(
+        @"^##\s+\d{1,2}\s+\w+\s*$",
+        RegexOptions.Compiled);
+
+    private static readonly Regex DaySectionHeaderWithCaptureRegex = new(
+        @"^##\s+(\d{1,2})\s+\w+\s*$",
+        RegexOptions.Compiled);
+
+    // Regex patterns for markdown headings
+    private static readonly Regex Level2HeadingRegex = new(
+        @"^##\s+",
+        RegexOptions.Compiled);
+
+    private static readonly Regex TitleHeadingRegex = new(
+        @"^#\s+",
+        RegexOptions.Compiled);
 
     private static DateTime? ExtractDateFromPath(string relativePath)
     {
