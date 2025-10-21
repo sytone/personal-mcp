@@ -30,31 +30,36 @@ public sealed class JournalTools
     {
         journalPath = string.IsNullOrWhiteSpace(journalPath) ? "1 Journal" : journalPath;
 
-        // Validate journal path exists using VaultService
-        if (!_vault.DirectoryExists(journalPath))
-        {
-            return $"Journal path not found: {journalPath}";
-        }
-
         DateTime? from = TryParseDate(fromDate);
         DateTime? to = TryParseDate(toDate);
 
         // Use VaultService to enumerate all markdown files in the journal directory
-        var mdFiles = _vault.EnumerateMarkdownFiles(journalPath)
-            .Select(file =>
-            {
-                var (exists, lastModified, _) = _vault.GetFileStats(file.rel);
-                var date = ExtractDateFromPath(file.rel) ?? lastModified;
-                return new
+        // Handle case where directory doesn't exist
+        List<(string RelPath, DateTime Date)> mdFiles;
+        try
+        {
+            mdFiles = _vault.EnumerateMarkdownFiles(journalPath)
+                .Select(file =>
                 {
-                    RelPath = file.rel,
-                    Date = date
-                };
-            })
-            .OrderByDescending(x => x.Date)
-            .Where(x => (!from.HasValue || x.Date.Date >= from.Value.Date) && (!to.HasValue || x.Date.Date <= to.Value.Date))
-            .Take(Math.Max(1, maxEntries))
-            .ToList();
+                    var (exists, lastModified, _) = _vault.GetFileStats(file.rel);
+                    var date = ExtractDateFromPath(file.rel) ?? lastModified;
+                    return (file.rel, date);
+                })
+                .OrderByDescending(x => x.date)
+                .Where(x => (!from.HasValue || x.date.Date >= from.Value.Date) && (!to.HasValue || x.date.Date <= to.Value.Date))
+                .Take(Math.Max(1, maxEntries))
+                .ToList();
+        }
+        catch (DirectoryNotFoundException)
+        {
+            // Directory doesn't exist, return no entries found
+            return "No journal entries found.";
+        }
+        catch (ArgumentException)
+        {
+            // Invalid path (e.g., contains "..", starts with "/")
+            return "No journal entries found.";
+        }
 
         if (mdFiles.Count == 0)
         {

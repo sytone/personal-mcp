@@ -48,8 +48,8 @@ public class JournalToolsTests : IClassFixture<TestVaultFixture>
             // Act
             var result = _journalTools.ReadJournalEntries(journalPath: "NonExistent");
 
-            // Assert
-            result.Should().Be("Journal path not found: NonExistent");
+            // Assert - Should return "No journal entries found." since directory doesn't exist/has no files
+            result.Should().Be("No journal entries found.");
         }
 
         [Fact]
