@@ -1,4 +1,5 @@
 using System.ComponentModel;
+using System.Globalization;
 using ModelContextProtocol.Server;
 using Personal.Mcp.Services;
 
@@ -7,19 +8,114 @@ namespace Personal.Mcp.Tools;
 [McpServerToolType]
 public static class OrganizationTools
 {
-    [McpServerTool(Name = "list_notes"), Description("List notes in a directory (recursive by default).")]
+    [McpServerTool(Name = "list_notes"), Description("List notes in a directory (recursive by default). Can filter by creation or modification date.")]
     public static object ListNotes(IVaultService vault,
         [Description("Directory to list, e.g., 'Daily' (optional)")] string? directory = null,
-        [Description("Recurse into subfolders")] bool recursive = true)
+        [Description("Recurse into subfolders")] bool recursive = true,
+        [Description("Filter by date (ISO format: YYYY-MM-DD) or date range (YYYY-MM-DD:YYYY-MM-DD)")] string? date_filter = null,
+        [Description("Date property to filter on: 'created', 'modified', or 'both' (default: 'modified')")] string date_property = "modified")
     {
         var root = vault.VaultPath;
         var baseDir = string.IsNullOrWhiteSpace(directory) ? root : vault.GetAbsolutePath(directory);
         var opts = recursive ? SearchOption.AllDirectories : SearchOption.TopDirectoryOnly;
+        
+        DateTime? startDate = null;
+        DateTime? endDate = null;
+        
+        // Parse date filter
+        if (!string.IsNullOrWhiteSpace(date_filter))
+        {
+            if (date_filter.Contains(':'))
+            {
+                // Date range format: YYYY-MM-DD:YYYY-MM-DD
+                var parts = date_filter.Split(':', 2);
+                if (DateTime.TryParseExact(parts[0].Trim(), "yyyy-MM-dd", CultureInfo.InvariantCulture, DateTimeStyles.None, out var start))
+                {
+                    startDate = start.Date;
+                }
+                if (parts.Length > 1 && DateTime.TryParseExact(parts[1].Trim(), "yyyy-MM-dd", CultureInfo.InvariantCulture, DateTimeStyles.None, out var end))
+                {
+                    endDate = end.Date.AddDays(1).AddTicks(-1); // End of day
+                }
+            }
+            else
+            {
+                // Single date format: YYYY-MM-DD
+                if (DateTime.TryParseExact(date_filter.Trim(), "yyyy-MM-dd", CultureInfo.InvariantCulture, DateTimeStyles.None, out var date))
+                {
+                    startDate = date.Date;
+                    endDate = date.Date.AddDays(1).AddTicks(-1); // End of day
+                }
+            }
+        }
+        
         var notes = Directory.EnumerateFiles(baseDir, "*.md", opts)
-            .Select(p => new { path = Path.GetRelativePath(root, p).Replace("\\", "/"), name = Path.GetFileName(p) })
+            .Select(p => 
+            {
+                var fileInfo = new FileInfo(p);
+                return new 
+                { 
+                    path = Path.GetRelativePath(root, p).Replace("\\", "/"), 
+                    name = Path.GetFileName(p),
+                    created = fileInfo.CreationTime,
+                    modified = fileInfo.LastWriteTime,
+                    fileInfo
+                };
+            })
+            .Where(n => 
+            {
+                if (startDate == null && endDate == null)
+                    return true;
+                
+                var checkCreated = date_property == "created" || date_property == "both";
+                var checkModified = date_property == "modified" || date_property == "both";
+                
+                bool matchesCreated = false;
+                bool matchesModified = false;
+                
+                if (checkCreated)
+                {
+                    if (startDate.HasValue && endDate.HasValue)
+                        matchesCreated = n.created >= startDate.Value && n.created <= endDate.Value;
+                    else if (startDate.HasValue)
+                        matchesCreated = n.created >= startDate.Value;
+                    else if (endDate.HasValue)
+                        matchesCreated = n.created <= endDate.Value;
+                }
+                
+                if (checkModified)
+                {
+                    if (startDate.HasValue && endDate.HasValue)
+                        matchesModified = n.modified >= startDate.Value && n.modified <= endDate.Value;
+                    else if (startDate.HasValue)
+                        matchesModified = n.modified >= startDate.Value;
+                    else if (endDate.HasValue)
+                        matchesModified = n.modified <= endDate.Value;
+                }
+                
+                return date_property == "both" ? (matchesCreated || matchesModified) : (matchesCreated || matchesModified);
+            })
+            .Select(n => new 
+            { 
+                n.path, 
+                n.name,
+                created = n.created.ToString("yyyy-MM-dd HH:mm:ss"),
+                modified = n.modified.ToString("yyyy-MM-dd HH:mm:ss")
+            })
             .OrderBy(n => n.path)
             .ToList();
-        return new { directory = directory ?? "/", recursive, count = notes.Count, notes };
+            
+        return new 
+        { 
+            directory = directory ?? "/", 
+            recursive, 
+            date_filter = date_filter ?? "none",
+            date_property,
+            start_date = startDate?.ToString("yyyy-MM-dd"),
+            end_date = endDate?.ToString("yyyy-MM-dd"),
+            count = notes.Count, 
+            notes 
+        };
     }
 
     [McpServerTool(Name = "list_folders"), Description("List folders in a directory (recursive by default).")]
