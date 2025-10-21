@@ -105,45 +105,46 @@ public sealed class JournalTools
 
         journalPath = string.IsNullOrWhiteSpace(journalPath) ? "1 Journal" : journalPath;
 
-        // Validate journal path using VaultService
-        if (!_vault.DirectoryExists(journalPath))
+        try
         {
-            return $"Journal path not found: {journalPath}";
-        }
-
-        DateTime targetDate = DateTime.Now;
-        if (!string.IsNullOrWhiteSpace(date) && DateTime.TryParse(date, out var parsed))
-        {
-            targetDate = parsed;
-        }
-
-        // Determine weekly file name (ISO week)
-        int isoYear = ISOWeek.GetYear(targetDate);
-        int isoWeek = ISOWeek.GetWeekOfYear(targetDate);
-        string weeklyFileName = $"{isoYear}-W{isoWeek:00}.md";
-
-        // Try to find an existing weekly file using VaultService
-        string? weeklyRelPath = null;
-        foreach (var (abs, rel) in _vault.EnumerateMarkdownFiles(journalPath))
-        {
-            var fileName = _vault.GetFileName(rel);
-            if (fileName.Equals(weeklyFileName, StringComparison.OrdinalIgnoreCase))
+            DateTime targetDate = DateTime.Now;
+            if (!string.IsNullOrWhiteSpace(date) && DateTime.TryParse(date, out var parsed))
             {
-                weeklyRelPath = rel;
-                break;
+                targetDate = parsed;
             }
-        }
 
-        // If not found, create path in default location: <journalPath>/<year>/<year>-Www.md
-        if (weeklyRelPath is null)
-        {
-            weeklyRelPath = $"{journalPath}/{isoYear}/{weeklyFileName}".Replace("\\", "/");
-        }
+            // Determine weekly file name (ISO week)
+            int isoYear = ISOWeek.GetYear(targetDate);
+            int isoWeek = ISOWeek.GetWeekOfYear(targetDate);
+            string weeklyFileName = $"{isoYear}-W{isoWeek:00}.md";
 
-        // Read existing content or create stub using VaultService
-        string content;
-        var (exists, _, _) = _vault.GetNoteInfo(weeklyRelPath);
-        if (exists)
+            // Try to find an existing weekly file using VaultService
+            string? weeklyRelPath = null;
+            
+            // Only check if journal path exists if we're looking for existing files
+            if (_vault.DirectoryExists(journalPath))
+            {
+                foreach (var (abs, rel) in _vault.EnumerateMarkdownFiles(journalPath))
+                {
+                    var fileName = _vault.GetFileName(rel);
+                    if (fileName.Equals(weeklyFileName, StringComparison.OrdinalIgnoreCase))
+                    {
+                        weeklyRelPath = rel;
+                        break;
+                    }
+                }
+            }
+
+            // If not found, create path in default location: <journalPath>/<year>/<year>-Www.md
+            if (weeklyRelPath is null)
+            {
+                weeklyRelPath = $"{journalPath}/{isoYear}/{weeklyFileName}".Replace("\\", "/");
+            }
+
+            // Read existing content or create stub using VaultService
+            string content;
+            var (exists, _, _) = _vault.GetNoteInfo(weeklyRelPath);
+            if (exists)
         {
             try
             {
@@ -257,6 +258,22 @@ public sealed class JournalTools
         }
 
         return $"Added entry to {weeklyRelPath} under '{heading}'.";
+        }
+        catch (ArgumentException ex)
+        {
+            // Path validation errors (e.g., contains "..", starts with "/", escapes vault)
+            return $"Error: Invalid journal path - {ex.Message}";
+        }
+        catch (UnauthorizedAccessException ex)
+        {
+            // Path escapes vault
+            return $"Error: Invalid journal path - {ex.Message}";
+        }
+        catch (Exception ex)
+        {
+            // Any other unexpected errors
+            return $"Error adding journal entry: {ex.Message}";
+        }
     }
 
     private static string CreateMinimalWeeklyStub(int isoYear, int isoWeek)
