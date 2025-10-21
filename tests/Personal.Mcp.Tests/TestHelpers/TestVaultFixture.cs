@@ -18,14 +18,16 @@ public class TestVaultFixture : IDisposable
 
     public TestVaultFixture()
     {
-        // Use a deterministic path for the mock vault
-        VaultPath = @"C:\TestVault";
+        // Use a platform-agnostic path for the mock vault
+        // On Windows: C:\TestVault
+        // On Linux: /tmp/TestVault
+        VaultPath = Path.Combine(Path.GetTempPath(), "TestVault");
 
         // Create mock file system with pre-populated files
         var mockFiles = new Dictionary<string, MockFileData>();
         
         // Create vault root directory
-        mockFiles[@"C:\TestVault"] = new MockDirectoryData();
+        mockFiles[VaultPath] = new MockDirectoryData();
         
         // Populate test files
         PopulateVirtualFileSystem(mockFiles);
@@ -45,14 +47,15 @@ public class TestVaultFixture : IDisposable
     private void PopulateVirtualFileSystem(Dictionary<string, MockFileData> mockFiles)
     {
         // Create directory structure (directories need to be explicitly added to MockFileSystem)
+        // Use Path.Combine for platform-agnostic paths
         var directories = new[]
         {
-            @"C:\TestVault\1 Journal",
-            @"C:\TestVault\1 Journal\2025",
-            @"C:\TestVault\1 Journal\2024",
-            @"C:\TestVault\Notes",
-            @"C:\TestVault\Projects",
-            @"C:\TestVault\.obsidian"
+            Path.Combine(VaultPath, "1 Journal"),
+            Path.Combine(VaultPath, "1 Journal", "2025"),
+            Path.Combine(VaultPath, "1 Journal", "2024"),
+            Path.Combine(VaultPath, "Notes"),
+            Path.Combine(VaultPath, "Projects"),
+            Path.Combine(VaultPath, ".obsidian")
         };
 
         foreach (var dir in directories)
@@ -61,13 +64,13 @@ public class TestVaultFixture : IDisposable
         }
 
         // Create test journal files
-        AddMockFile(mockFiles, @"C:\TestVault\1 Journal\2025\2025-W42.md", CreateWeeklyJournalContent(2025, 42));
-        AddMockFile(mockFiles, @"C:\TestVault\1 Journal\2025\2025-W41.md", CreateWeeklyJournalContent(2025, 41));
-        AddMockFile(mockFiles, @"C:\TestVault\1 Journal\2024\2024-12-31.md", CreateDailyJournalContent(new DateTime(2024, 12, 31)));
+        AddMockFile(mockFiles, Path.Combine(VaultPath, "1 Journal", "2025", "2025-W42.md"), CreateWeeklyJournalContent(2025, 42));
+        AddMockFile(mockFiles, Path.Combine(VaultPath, "1 Journal", "2025", "2025-W41.md"), CreateWeeklyJournalContent(2025, 41));
+        AddMockFile(mockFiles, Path.Combine(VaultPath, "1 Journal", "2024", "2024-12-31.md"), CreateDailyJournalContent(new DateTime(2024, 12, 31)));
 
         // Create test note files
-        AddMockFile(mockFiles, @"C:\TestVault\Notes\Test Note.md", CreateTestNoteContent("Test Note", new[] { "test", "example" }));
-        AddMockFile(mockFiles, @"C:\TestVault\Projects\Personal MCP.md", CreateTestNoteContent("Personal MCP Project", new[] { "project", "mcp", "csharp" }));
+        AddMockFile(mockFiles, Path.Combine(VaultPath, "Notes", "Test Note.md"), CreateTestNoteContent("Test Note", new[] { "test", "example" }));
+        AddMockFile(mockFiles, Path.Combine(VaultPath, "Projects", "Personal MCP.md"), CreateTestNoteContent("Personal MCP Project", new[] { "project", "mcp", "csharp" }));
     }
 
     private void AddMockFile(Dictionary<string, MockFileData> mockFiles, string fullPath, string content)
