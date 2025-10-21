@@ -1,5 +1,5 @@
 using System.ComponentModel;
-using System.IO;
+using System.IO.Abstractions;
 using System.Linq;
 using ModelContextProtocol.Server;
 using Personal.Mcp.Services;
@@ -20,15 +20,17 @@ public static class LinkManagementTools
     }
 
     [McpServerTool(Name = "find_broken_links"), Description("Find all broken wiki-style links in the vault or directory.")]
-    public static object FindBrokenLinks(LinkService links,
+    public static object FindBrokenLinks(
+        LinkService links,
+        IFileSystem fileSystem,
         [Description("Directory (optional)")] string? directory = null,
         [Description("Single note (optional)")] string? single_note = null)
     {
         if (!string.IsNullOrWhiteSpace(single_note))
         {
-            var list = links.FindBrokenLinks(Path.GetDirectoryName(single_note)?.Replace("\\", "/"));
+            var list = links.FindBrokenLinks(fileSystem.Path.GetDirectoryName(single_note)?.Replace("\\", "/"));
             list = list.Where(b => string.Equals(b.sourcePath, single_note.Replace("\\", "/"), StringComparison.OrdinalIgnoreCase)).ToList();
-            return new { directory = Path.GetDirectoryName(single_note)?.Replace("\\", "/"), broken_link_count = list.Count, affected_notes = list.Select(x => x.sourcePath).Distinct().Count(), broken_links = list.Select(x => new { source_path = x.sourcePath, broken_link = x.brokenLink, display_text = x.displayText }) };
+            return new { directory = fileSystem.Path.GetDirectoryName(single_note)?.Replace("\\", "/"), broken_link_count = list.Count, affected_notes = list.Select(x => x.sourcePath).Distinct().Count(), broken_links = list.Select(x => new { source_path = x.sourcePath, broken_link = x.brokenLink, display_text = x.displayText }) };
         }
         else
         {

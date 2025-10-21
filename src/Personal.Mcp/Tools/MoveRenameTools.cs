@@ -1,4 +1,5 @@
 using System.ComponentModel;
+using System.IO.Abstractions;
 using ModelContextProtocol.Server;
 using Personal.Mcp.Services;
 
@@ -8,7 +9,9 @@ namespace Personal.Mcp.Tools;
 public static class MoveRenameTools
 {
     [McpServerTool(Name = "move_note"), Description("Move or rename a note.")]
-    public static object MoveNote(IVaultService vault,
+    public static object MoveNote(
+        IVaultService vault,
+        IFileSystem fileSystem,
         LinkService links,
         IndexService index,
         [Description("Source path")] string source_path,
@@ -17,8 +20,8 @@ public static class MoveRenameTools
     {
         var srcAbs = vault.GetAbsolutePath(source_path);
         var dstAbs = vault.GetAbsolutePath(destination_path);
-        Directory.CreateDirectory(Path.GetDirectoryName(dstAbs)!);
-        File.Move(srcAbs, dstAbs, overwrite: true);
+        fileSystem.Directory.CreateDirectory(fileSystem.Path.GetDirectoryName(dstAbs)!);
+        fileSystem.File.Move(srcAbs, dstAbs, true);
 
         int filesUpdated = 0, replacements = 0;
         if (update_links)
@@ -42,7 +45,9 @@ public static class MoveRenameTools
     }
 
     [McpServerTool(Name = "rename_note"), Description("Rename a note within the same directory.")]
-    public static object RenameNote(IVaultService vault,
+    public static object RenameNote(
+        IVaultService vault,
+        IFileSystem fileSystem,
         LinkService links,
         IndexService index,
         [Description("Old path")] string old_path,
@@ -51,10 +56,10 @@ public static class MoveRenameTools
     {
         var oldAbs = vault.GetAbsolutePath(old_path);
         var newAbs = vault.GetAbsolutePath(new_path);
-        if (!string.Equals(Path.GetDirectoryName(oldAbs), Path.GetDirectoryName(newAbs), StringComparison.OrdinalIgnoreCase))
+        if (!string.Equals(fileSystem.Path.GetDirectoryName(oldAbs), fileSystem.Path.GetDirectoryName(newAbs), StringComparison.OrdinalIgnoreCase))
             throw new InvalidOperationException("Rename must stay in the same directory. Use move_note to move.")
             ;
-        File.Move(oldAbs, newAbs, overwrite: true);
+        fileSystem.File.Move(oldAbs, newAbs, true);
 
         int filesUpdated = 0, replacements = 0;
         if (update_links)
@@ -76,26 +81,28 @@ public static class MoveRenameTools
     }
 
     [McpServerTool(Name = "move_folder"), Description("Move a folder and all contents.")]
-    public static object MoveFolder(IVaultService vault,
+    public static object MoveFolder(
+        IVaultService vault,
+        IFileSystem fileSystem,
         [Description("Source folder")] string source_folder,
         [Description("Destination folder")] string destination_folder,
         [Description("Update links (future)")] bool update_links = true)
     {
         var srcAbs = vault.GetAbsolutePath(source_folder);
         var dstAbs = vault.GetAbsolutePath(destination_folder);
-        Directory.CreateDirectory(dstAbs);
-        foreach (var dirPath in Directory.EnumerateDirectories(srcAbs, "*", SearchOption.AllDirectories))
+        fileSystem.Directory.CreateDirectory(dstAbs);
+        foreach (var dirPath in fileSystem.Directory.EnumerateDirectories(srcAbs, "*", SearchOption.AllDirectories))
         {
-            Directory.CreateDirectory(dirPath.Replace(srcAbs, dstAbs));
+            fileSystem.Directory.CreateDirectory(dirPath.Replace(srcAbs, dstAbs));
         }
-        foreach (var filePath in Directory.EnumerateFiles(srcAbs, "*", SearchOption.AllDirectories))
+        foreach (var filePath in fileSystem.Directory.EnumerateFiles(srcAbs, "*", SearchOption.AllDirectories))
         {
             var dest = filePath.Replace(srcAbs, dstAbs);
-            Directory.CreateDirectory(Path.GetDirectoryName(dest)!);
-            File.Copy(filePath, dest, overwrite: true);
+            fileSystem.Directory.CreateDirectory(fileSystem.Path.GetDirectoryName(dest)!);
+            fileSystem.File.Copy(filePath, dest, true);
         }
         // Remove old tree
-        Directory.Delete(srcAbs, recursive: true);
+        fileSystem.Directory.Delete(srcAbs, recursive: true);
         return new { source = source_folder, destination = destination_folder, moved = true };
     }
 }

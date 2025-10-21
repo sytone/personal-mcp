@@ -477,11 +477,11 @@ public class JournalToolsTests : IClassFixture<TestVaultFixture>
 
             // Verify the content has correct ordering
             var content = _fixture.VaultService.ReadNoteRaw("1 Journal/2025/2025-W42.md");
-            
+
             // Wednesday (15) should come before Friday (17)
             var wednesdayIndex = content.IndexOf("## 15 Wednesday");
             var fridayIndex = content.IndexOf("## 17 Friday");
-            
+
             wednesdayIndex.Should().BeGreaterThan(-1, "Wednesday heading should exist");
             fridayIndex.Should().BeGreaterThan(-1, "Friday heading should exist");
             wednesdayIndex.Should().BeLessThan(fridayIndex, "Wednesday should appear before Friday");

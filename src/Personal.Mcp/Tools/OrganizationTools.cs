@@ -1,5 +1,6 @@
 using System.ComponentModel;
 using System.Globalization;
+using System.IO.Abstractions;
 using ModelContextProtocol.Server;
 using Personal.Mcp.Services;
 
@@ -9,7 +10,9 @@ namespace Personal.Mcp.Tools;
 public static class OrganizationTools
 {
     [McpServerTool(Name = "list_notes"), Description("List notes in a directory (recursive by default). Can filter by creation or modification date.")]
-    public static object ListNotes(IVaultService vault,
+    public static object ListNotes(
+        IVaultService vault,
+        IFileSystem fileSystem,
         [Description("Directory to list, e.g., 'Daily' (optional)")] string? directory = null,
         [Description("Recurse into subfolders")] bool recursive = true,
         [Description("Filter by date (ISO format: YYYY-MM-DD) or date range (YYYY-MM-DD:YYYY-MM-DD)")] string? date_filter = null,
@@ -49,14 +52,14 @@ public static class OrganizationTools
             }
         }
         
-        var notes = Directory.EnumerateFiles(baseDir, "*.md", opts)
+        var notes = fileSystem.Directory.EnumerateFiles(baseDir, "*.md", opts)
             .Select(p => 
             {
-                var fileInfo = new FileInfo(p);
+                var fileInfo = fileSystem.FileInfo.New(p);
                 return new 
                 { 
-                    path = Path.GetRelativePath(root, p).Replace("\\", "/"), 
-                    name = Path.GetFileName(p),
+                    path = fileSystem.Path.GetRelativePath(root, p).Replace("\\", "/"), 
+                    name = fileSystem.Path.GetFileName(p),
                     created = fileInfo.CreationTime,
                     modified = fileInfo.LastWriteTime,
                     fileInfo
@@ -119,33 +122,38 @@ public static class OrganizationTools
     }
 
     [McpServerTool(Name = "list_folders"), Description("List folders in a directory (recursive by default).")]
-    public static object ListFolders(IVaultService vault,
+    public static object ListFolders(
+        IVaultService vault,
+        IFileSystem fileSystem,
         [Description("Directory to list from (optional)")] string? directory = null,
         [Description("Recurse into subfolders")] bool recursive = true)
     {
         var root = vault.VaultPath;
         var baseDir = string.IsNullOrWhiteSpace(directory) ? root : vault.GetAbsolutePath(directory);
         var opts = recursive ? SearchOption.AllDirectories : SearchOption.TopDirectoryOnly;
-        var folders = Directory.EnumerateDirectories(baseDir, "*", opts)
-            .Select(p => new { path = Path.GetRelativePath(root, p).Replace("\\", "/"), name = Path.GetFileName(p) })
+        var folders = fileSystem.Directory.EnumerateDirectories(baseDir, "*", opts)
+            .Select(p => new { path = fileSystem.Path.GetRelativePath(root, p).Replace("\\", "/"), name = fileSystem.Path.GetFileName(p) })
             .OrderBy(n => n.path)
             .ToList();
         return new { directory = directory ?? "/", recursive, count = folders.Count, folders };
     }
 
     [McpServerTool(Name = "create_folder"), Description("Create a folder and parents if needed.")]
-    public static object CreateFolder(IVaultService vault,
+    public static object CreateFolder(
+        IVaultService vault,
+        IFileSystem fileSystem,
         [Description("Folder path to create, e.g., 'Research/Studies/2024'")] string folder_path,
         [Description("Create placeholder file .gitkeep")] bool create_placeholder = true)
     {
         var abs = vault.GetAbsolutePath(folder_path);
-        Directory.CreateDirectory(abs);
+        fileSystem.Directory.CreateDirectory(abs);
         string? placeholder = null;
         if (create_placeholder)
         {
-            placeholder = Path.Combine(abs, ".gitkeep");
-            if (!File.Exists(placeholder)) File.WriteAllText(placeholder, string.Empty);
-            placeholder = Path.GetRelativePath(vault.VaultPath, placeholder).Replace("\\", "/");
+            placeholder = fileSystem.Path.Combine(abs, ".gitkeep");
+            if (!fileSystem.File.Exists(placeholder)) 
+                fileSystem.File.WriteAllText(placeholder, string.Empty);
+            placeholder = fileSystem.Path.GetRelativePath(vault.VaultPath, placeholder).Replace("\\", "/");
         }
         // Build list of created folder hierarchy
         var parts = folder_path.Replace("\\", "/").Split('/', StringSplitOptions.RemoveEmptyEntries);
