@@ -808,6 +808,9 @@ created: 2025-11-10T00:00
             var settingsContent = "---\njournalTasksHeading: \"## Action Items\"\n---\nVault settings";
             _fixture.FileSystem.File.WriteAllText(settingsPath, settingsContent);
 
+            var journalTasksHeading = _fixture.VaultService.GetVaultSetting("journalTasksHeading");
+            journalTasksHeading.Should().Be("## Action Items");
+
             var taskDescription = "Task with custom heading";
             var testDate = "2025-10-16";
 

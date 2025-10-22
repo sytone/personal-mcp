@@ -345,7 +345,7 @@ Message: {{message}}
             var result = _templateService.GetDefaultJournalTemplate();
 
             // Assert
-            result.Should().Contain("{{journal_day | iso_date: '%Y-W%V'}}");
+            result.Should().Contain("{{monday_iso_week | iso_date: '%Y-W%V'}}");
         }
 
         [Fact]
