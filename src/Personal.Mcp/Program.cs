@@ -82,6 +82,7 @@ try
     builder.Services.AddSingleton(indexConnectionConfig);
     builder.Services.AddSingleton<IFileSystem, FileSystem>();
     builder.Services.AddSingleton<IVaultService, VaultService>();
+    builder.Services.AddSingleton<ITemplateService, TemplateService>();
     builder.Services.AddSingleton<IndexService>();
     builder.Services.AddSingleton<TagService>();
     builder.Services.AddSingleton<LinkService>();

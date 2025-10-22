@@ -13,16 +13,18 @@ public sealed class JournalTools
 {
     private readonly IVaultService _vault;
     private readonly IndexService _index;
+    private readonly ITemplateService _template;
 
     // Format strings for journal entries
     private const string TimeFormat = "HH:mm";
     private const string DefaultJournalPath = "1 Journal";
     private const string DefaultTasksHeading = "## Tasks This Week";
 
-    public JournalTools(IVaultService vault, IndexService index)
+    public JournalTools(IVaultService vault, IndexService index, ITemplateService template)
     {
         _vault = vault;
         _index = index;
+        _template = template;
     }
 
     [McpServerTool, Description("Read journal entries from a markdown-based knowledge store.")]
@@ -369,6 +371,7 @@ public sealed class JournalTools
 
     /// <summary>
     /// Loads existing weekly content or creates a new stub if file doesn't exist.
+    /// Uses the template service for creating new journal files with proper structure.
     /// </summary>
     private string LoadOrCreateWeeklyContent(string weeklyRelPath, int isoYear, int isoWeek)
     {
@@ -381,10 +384,10 @@ public sealed class JournalTools
             }
             catch
             {
-                return CreateMinimalWeeklyStub(isoYear, isoWeek);
+                return CreateTemplatedWeeklyStub(isoYear, isoWeek);
             }
         }
-        return CreateMinimalWeeklyStub(isoYear, isoWeek);
+        return CreateTemplatedWeeklyStub(isoYear, isoWeek);
     }
 
     /// <summary>
@@ -457,12 +460,54 @@ public sealed class JournalTools
         }
     }
 
-    private static string CreateMinimalWeeklyStub(int isoYear, int isoWeek)
+    /// <summary>
+    /// Creates a new weekly journal file using the template service.
+    /// Generates day headings for all 7 days in the ISO week.
+    /// </summary>
+    private string CreateTemplatedWeeklyStub(int isoYear, int isoWeek)
     {
-        var sb = new StringBuilder();
-        sb.AppendLine($"# Week {isoWeek} in {isoYear}");
-        sb.AppendLine();
-        return sb.ToString();
+        try
+        {
+            // Get the Monday of this ISO week (first day)
+            var monday = ISOWeek.ToDateTime(isoYear, isoWeek, DayOfWeek.Monday);
+
+            // Get the template
+            var template = _template.GetDefaultJournalTemplate();
+
+
+            // Build context with week information
+            var context = new Dictionary<string, object>
+            {
+                ["week_number"] = isoWeek,
+                ["year"] = isoYear,
+                ["day_number"] = monday.Day,
+                ["day_name"] = monday.ToString("dddd"),
+                ["journal_day"] = monday,
+                ["created_date"] = DateTime.Now,
+                ["monday_iso_week"] = monday
+            };
+            
+            // Render the template
+            var renderedContent = _template.RenderTemplate(template, context);
+            
+            // Generate additional day headings for the remaining 6 days of the week
+            var sb = new StringBuilder(renderedContent);
+            
+            for (int i = 1; i <= 6; i++)
+            {
+                var day = monday.AddDays(i);
+                sb.AppendLine();
+                sb.AppendLine($"## {day.Day} {day:dddd}");
+                sb.AppendLine();
+            }
+            
+            return sb.ToString();
+        }
+        catch (Exception)
+        {
+            // Fallback to minimal stub if templating fails
+            return $"# Week {isoWeek} in {isoYear}\n\n";
+        }
     }
 
     private static DateTime? TryParseDate(string? value)

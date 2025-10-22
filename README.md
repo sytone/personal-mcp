@@ -73,7 +73,8 @@ To use this MCP server with GitHub Copilot in VS Code:
 
 ## Available Tools
 
-- **Notes**: read_note, create_note, update_note, edit_note_content, edit_note_section, delete_note
+- **Notes**: read_note, create_note (with template support), update_note, edit_note_content, edit_note_section, delete_note
+- **Journal**: read_journal_entries, add_journal_entry (with automatic templating), add_journal_task
 - **Organization**: list_notes, list_folders, create_folder
 - **Move/Rename**: move_note (basic wiki link update), rename_note (basic wiki link update), move_folder
 - **Tags**: list_tags, add_tags, update_tags, remove_tags
@@ -81,6 +82,40 @@ To use this MCP server with GitHub Copilot in VS Code:
 - **Links**: get_outgoing_links, get_backlinks, find_broken_links
 - **Images**: read_image, view_note_images
 - **Properties**: get_note_info, get_frontmatter, set_property, set_property_list, remove_property, search_by_property
+- **Date Utilities**: calculate_relative_date, get_date_info, get_week_dates
+- **Templates**: Full Liquid template support for dynamic note and journal creation
+
+## Features
+
+### Templating Support
+
+Create standardized notes and journal entries using Liquid template syntax:
+
+- **Dynamic Variables**: Pass context data for variable substitution
+- **Conditionals & Loops**: Use `{% if %}` and `{% for %}` for complex templates
+- **Default Templates**: Pre-configured templates for journals and notes
+- **Custom Templates**: Create your own templates with full Liquid syntax support
+
+Example:
+```liquid
+---
+title: {{title}}
+created: {{created_date}}
+tags: [{{tags}}]
+---
+
+# {{title}}
+
+{% if description %}
+{{description}}
+{% endif %}
+
+{% for task in tasks %}
+- [ ] {{task}}
+{% endfor %}
+```
+
+See [docs/templating.md](./docs/templating.md) for comprehensive documentation and examples.
 
 ## Implementation Notes
 

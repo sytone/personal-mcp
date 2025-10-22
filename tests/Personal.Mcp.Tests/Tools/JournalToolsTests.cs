@@ -1,5 +1,6 @@
 using Personal.Mcp.Tools;
 using Personal.Mcp.Tests.TestHelpers;
+using Personal.Mcp.Services;
 using System.Globalization;
 
 namespace Personal.Mcp.Tests.Tools;
@@ -8,11 +9,13 @@ public class JournalToolsTests : IClassFixture<TestVaultFixture>
 {
     private readonly TestVaultFixture _fixture;
     private readonly JournalTools _journalTools;
+    private readonly ITemplateService _templateService;
 
     public JournalToolsTests(TestVaultFixture fixture)
     {
         _fixture = fixture;
-        _journalTools = new JournalTools(_fixture.VaultService, _fixture.IndexService);
+        _templateService = new TemplateService();
+        _journalTools = new JournalTools(_fixture.VaultService, _fixture.IndexService, _templateService);
     }
 
     public class ReadJournalEntriesTests : JournalToolsTests

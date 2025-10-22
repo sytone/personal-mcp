@@ -5,6 +5,12 @@ Welcome to the Personal MCP Server documentation.
 ## Guides
 
 - **[Publishing to NuGet](./publishing-to-nuget.md)** - Complete guide for publishing the MCP server to NuGet.org, including security checklist, testing, and troubleshooting.
+- **[Templating Support](./templating.md)** - Comprehensive guide to using Liquid templates for dynamic note and journal creation with examples and best practices.
+- **[Date Accuracy](./date-accuracy.md)** - Guidelines for handling relative dates and date calculations correctly.
+- **[Vault Settings](./vault-settings.md)** - Configuration options for customizing vault behavior.
+- **[Index Service Configuration](./index-service-configuration.md)** - Understanding and configuring the search index.
+- **[List Notes Date Filtering](./list-notes-date-filtering.md)** - Using date filters to find notes.
+- **[MCP Settings](./mcp-settings.md)** - MCP-specific configuration and settings.
 
 ## Quick Links
 
