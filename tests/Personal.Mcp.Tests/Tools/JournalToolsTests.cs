@@ -197,6 +197,61 @@ public class JournalToolsTests : IClassFixture<TestVaultFixture>
             exists.Should().BeTrue();
 
             var content = _fixture.VaultService.ReadNoteRaw(weeklyFile);
+            string timePrefix = DateTime.Now.ToString("HH:mm", CultureInfo.InvariantCulture);
+
+            var expectedMarkdown = $"""
+---
+tags:
+  - "journal/weekly/2025-W46"
+notetype: weekly
+noteVersion: 5
+category: weekly
+created: 2025-11-10T00:00
+---
+# Week 46 in 2025
+
+[[2025-W45|↶ Previous]] ⋮ [[2025|2025]] › [[2025-11|Nov]] › [[2025-W46|W46]] ⋮ [[2025-W47|Following ↷]]
+
+---
+
+## Tasks This Week
+- [ ] Task
+
+## 10 Monday
+
+
+## 11 Tuesday
+
+
+## 12 Wednesday
+
+
+## 13 Thursday
+
+
+## 14 Friday
+
+
+## 15 Saturday
+
+
+- {timePrefix} - Entry for a new week
+
+## 16 Sunday
+
+
+""";
+
+            // Validate line by line the content and the expectedMarkdown.
+            var expectedLines = expectedMarkdown.Split('\n', StringSplitOptions.None);
+            var contentLines = content.Split('\n', StringSplitOptions.None);
+
+            for (int i = 0; i < expectedLines.Length; i++)
+            {
+                expectedLines[i].Should().Be(contentLines[i], $"Line {i}:{expectedLines[i]} = {contentLines[i]} :: {content} != {expectedMarkdown}");
+            }
+
+            content.Should().Be(expectedMarkdown);
             content.Should().Contain("Entry for a new week");
             content.Should().Contain("# Week 46 in 2025");
         }
@@ -266,15 +321,15 @@ public class JournalToolsTests : IClassFixture<TestVaultFixture>
             // Arrange
             var customPath = "CustomJournal";
             var entryContent = "Custom path entry";
-            
+
             // Create the directory at test runtime using VaultService
             // First create a placeholder file to ensure the directory exists
             var placeholderPath = $"{customPath}/.gitkeep";
             _fixture.VaultService.WriteNote(placeholderPath, string.Empty, overwrite: true);
-            
+
             // Add a small delay to ensure filesystem operations complete
             Thread.Sleep(50);
-            
+
             // Verify directory exists before proceeding
             if (!_fixture.VaultService.DirectoryExists(customPath))
             {
@@ -360,7 +415,7 @@ public class JournalToolsTests : IClassFixture<TestVaultFixture>
             result.Should().Contain("Added entry to");
 
             var content = _fixture.VaultService.ReadNoteRaw("1 Journal/2025/2025-W42.md");
-            
+
             // Should contain timestamp in HH:mm format
             content.Should().MatchRegex(@"\d{2}:\d{2} - Timestamped entry");
         }
@@ -483,7 +538,7 @@ public class JournalToolsTests : IClassFixture<TestVaultFixture>
             };
 
             // Act - Add all entries
-            var addResults = entries.Select(e => 
+            var addResults = entries.Select(e =>
                 _journalTools.AddJournalEntry(e.Item2, date: e.Item1)).ToArray();
 
             // Act - Read all entries
@@ -494,7 +549,7 @@ public class JournalToolsTests : IClassFixture<TestVaultFixture>
                 maxEntries: 10);
 
             // Assert
-            addResults.Should().AllSatisfy(result => 
+            addResults.Should().AllSatisfy(result =>
                 result.Should().Contain("Added entry to"));
 
             readResult.Should().Contain("Week 41 entry");
@@ -634,15 +689,15 @@ public class JournalToolsTests : IClassFixture<TestVaultFixture>
             result.Should().Contain("2025-W48.md");
 
             var content = _fixture.VaultService.ReadNoteRaw("1 Journal/2025/2025-W48.md");
-            
+
             // Tasks section should be created after the title
             var titleIndex = content.IndexOf("# Week 48 in 2025");
             var tasksIndex = content.IndexOf("## Tasks This Week");
-            
+
             titleIndex.Should().BeGreaterThan(-1);
             tasksIndex.Should().BeGreaterThan(-1);
             tasksIndex.Should().BeGreaterThan(titleIndex, "Tasks section should come after title");
-            
+
             content.Should().Contain("- [ ] First task for this week");
         }
 
@@ -662,7 +717,7 @@ public class JournalToolsTests : IClassFixture<TestVaultFixture>
 
             // Assert
             var content = _fixture.VaultService.ReadNoteRaw("1 Journal/2025/2025-W42.md");
-            
+
             content.Should().Contain("## Tasks This Week");
             content.Should().Contain("- [ ] Task one");
             content.Should().Contain("- [ ] Task two");
@@ -705,7 +760,7 @@ public class JournalToolsTests : IClassFixture<TestVaultFixture>
             // Arrange
             var customPath = "CustomJournal";
             var taskDescription = "Custom path task";
-            
+
             // Create the directory
             var placeholderPath = $"{customPath}/.gitkeep";
             _fixture.VaultService.WriteNote(placeholderPath, string.Empty, overwrite: true);

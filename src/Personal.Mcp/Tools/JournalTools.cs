@@ -5,6 +5,10 @@ using System.ComponentModel;
 using System.Text;
 using System.Globalization;
 using System.Text.RegularExpressions;
+using Markdig.Renderers.Roundtrip;
+using Markdig.Syntax;
+using Markdig;
+using Markdig.Renderers.Normalize;
 
 namespace Personal.Mcp.Tools;
 
@@ -159,7 +163,7 @@ public sealed class JournalTools
                     lines.Insert(insertIndex, string.Empty);
                     insertIndex++;
                 }
-                lines.Insert(insertIndex, $"- {timePrefix} - {entryToInsert}");
+                lines.Insert(insertIndex, $"- {timePrefix} - {entryToInsert}{Environment.NewLine}");
             }
             else
             {
@@ -205,7 +209,7 @@ public sealed class JournalTools
                     }
                     lines.Add(heading);
                     lines.Add(string.Empty);
-                    lines.Add($"- {timePrefix} - {entryToInsert}");
+                    lines.Add($"- {timePrefix} - {entryToInsert}{Environment.NewLine}");
                 }
             }
 
@@ -306,6 +310,7 @@ public sealed class JournalTools
 
             // Write updated content and update index
             var updatedContent = string.Join(Environment.NewLine, lines);
+
             return WriteJournalContent(weeklyRelPath, updatedContent, $"Added task to {weeklyRelPath} under '{tasksHeading}'.");
         }
         catch (ArgumentException ex)
@@ -397,6 +402,20 @@ public sealed class JournalTools
     {
         try
         {
+            // Check if content is \n or \r\n for the end of line indicators.
+            // if (content.Contains("\r\n"))
+            // {
+            //     content = Regex.Replace(content, @"(#+ .+)\r\n\r\n", "$1\r\n");
+            // }
+            // else
+            // {
+            //     content = Regex.Replace(content, @"(#+ .+)\n\n", "$1\n");
+            // }
+            // Convert the MarkdownDocument back to Markdown
+            // updatedContent = Markdown.Normalize(updatedContent, new NormalizeOptions
+            // {
+            //     EmptyLineAfterHeading = true
+            // });
             _vault.WriteNote(weeklyRelPath, content, overwrite: true);
         }
         catch (Exception ex)
@@ -482,17 +501,17 @@ public sealed class JournalTools
                 ["year"] = isoYear,
                 ["day_number"] = monday.Day,
                 ["day_name"] = monday.ToString("dddd"),
-                ["journal_day"] = monday,
+                ["monday"] = monday,
                 ["created_date"] = DateTime.Now,
                 ["monday_iso_week"] = monday
             };
-            
+
             // Render the template
             var renderedContent = _template.RenderTemplate(template, context);
-            
+
             // Generate additional day headings for the remaining 6 days of the week
             var sb = new StringBuilder(renderedContent);
-            
+
             for (int i = 1; i <= 6; i++)
             {
                 var day = monday.AddDays(i);
@@ -500,7 +519,7 @@ public sealed class JournalTools
                 sb.AppendLine($"## {day.Day} {day:dddd}");
                 sb.AppendLine();
             }
-            
+
             return sb.ToString();
         }
         catch (Exception)
@@ -549,7 +568,7 @@ public sealed class JournalTools
         // Extract just the filename from the relative path
         var lastSlash = relativePath.LastIndexOfAny(['/', '\\']);
         var fileName = lastSlash >= 0 ? relativePath.Substring(lastSlash + 1) : relativePath;
-        
+
         // Remove .md extension if present
         if (fileName.EndsWith(".md", StringComparison.OrdinalIgnoreCase))
         {

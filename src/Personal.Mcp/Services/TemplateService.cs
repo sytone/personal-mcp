@@ -20,17 +20,15 @@ public sealed class TemplateService : ITemplateService
     private const string DefaultJournalTemplate = """
 ---
 tags:
-  - "journal/weekly/{{journal_day | iso_date: '%Y-W%V'}}"
+  - "journal/weekly/{{monday_iso_week | iso_date: '%Y-W%V'}}"
 notetype: weekly
 noteVersion: 5
 category: weekly
-created: {{journal_day | iso_date: '%Y-%m-%d'}}T{{journal_day | iso_date: '%H:%M'}}
+created: {{monday_iso_week | iso_date: '%Y-%m-%d'}}T{{monday_iso_week | iso_date: '%H:%M'}}
 ---
-# Week {{journal_day | iso_date: '%V'}} in {{journal_day | iso_date: '%Y'}}
+# Week {{monday_iso_week | iso_date: '%V'}} in {{monday_iso_week | iso_date: '%Y'}}
 
-{{journal_day | iso_date: "%Y"}}
-
-[[{{journal_day | iso_date: "%s" | minus : 604800 |  iso_date: '%Y-W%V'}}|↶ Previous]] ⋮ [[{{journal_day | iso_date: "%Y"}}|{{journal_day | iso_date: "%Y"}}]] › [[{{journal_day | iso_date: "%Y-%m"}}|{{journal_day | iso_date: "%b"}}]] › [[{{journal_day | iso_date: '%Y-W%V'}}|{{journal_day | iso_date: 'W%V'}}]] ⋮ [[{{journal_day | iso_date: "%s" | plus : 604800 |  iso_date: '%Y-W%V'}}|Following ↷]]
+[[{{monday_iso_week | iso_date: "%s" | minus : 604800 |  iso_date: '%Y-W%V'}}|↶ Previous]] ⋮ [[{{monday_iso_week | iso_date: "%Y"}}|{{monday_iso_week | iso_date: "%Y"}}]] › [[{{monday_iso_week | iso_date: "%Y-%m"}}|{{monday_iso_week | iso_date: "%b"}}]] › [[{{monday_iso_week | iso_date: '%Y-W%V'}}|{{monday_iso_week | iso_date: 'W%V'}}]] ⋮ [[{{monday_iso_week | iso_date: "%s" | plus : 604800 |  iso_date: '%Y-W%V'}}|Following ↷]]
 
 ---
 
@@ -38,6 +36,7 @@ created: {{journal_day | iso_date: '%Y-%m-%d'}}T{{journal_day | iso_date: '%H:%M
 - [ ] Task
 
 ## {{monday_iso_week | iso_date: "%e"}} {{monday_iso_week | iso_date: "%A"}}
+
 
 """;
 
