@@ -49,6 +49,8 @@ if ($LASTEXITCODE -ne 0) {
     exit $LASTEXITCODE
 }
 
+# dotnet tool install --global Versionize
+
 versionize --skip-commit --skip-tag
 
 Read-Host "✅ Build succeeded. Press Enter to continue with publishing or Ctrl+C to abort."
