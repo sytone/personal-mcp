@@ -2,9 +2,19 @@
 
 A C# implementation of an MCP (Model Context Protocol) server for interacting with Obsidian vaults. Built with the official ModelContextProtocol C# SDK, this server provides comprehensive tools for managing notes, links, tags, and more through AI assistants.
 
+[![NuGet Version](https://img.shields.io/nuget/v/Sytone.Personal.Mcp)](https://www.nuget.org/packages/Sytone.Personal.Mcp/)
+[![NuGet Downloads](https://img.shields.io/nuget/dt/Sytone.Personal.Mcp)](https://www.nuget.org/packages/Sytone.Personal.Mcp/)
+
 **Original Inspiration:** https://github.com/that0n3guy/ObsidianPilot
 
 ## Quick Start
+
+If you have dotnet 10.x or later installed, you can run the MCP server directly using `dnx`:
+
+```powershell
+dnx Sytone.Personal.Mcp@0.3.0 --yes
+```
+If you want to run from source clone this repository.
 
 - Set OBSIDIAN_VAULT_PATH to your vault directory
 - Run: `dotnet run --project src/Personal.Mcp`

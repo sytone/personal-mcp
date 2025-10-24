@@ -21,6 +21,11 @@ $programCsPath = "src/Personal.Mcp/Program.cs"
 Write-Host "🔄 Updating $programCsPath"
 (Get-Content $programCsPath) -replace 'Version = ".*?"', "Version = `"$Version`"" | Set-Content $programCsPath
 
+# Update the reference in README.md under the Quick Start section
+$readmePath = "README.md"
+Write-Host "🔄 Updating $readmePath"
+(Get-Content $readmePath) -replace 'Sytone\.Personal\.Mcp@.*?$', "Sytone.Personal.Mcp@$Version" | Set-Content $readmePath
+
 # Update the change log
 
 # Test the build
