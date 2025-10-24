@@ -23,7 +23,7 @@ It is based on the guide at [[Step by Step] Host and Integrate C# MCP Server wit
 4. Now we need to create a tunnel to expose our MCP server to the internet. Run the following command, replacing `<port>` with the port your MCP server will run on (e.g., 5000) and `tunnel-id` with a name for your tunnel.
     ```powershell
     devtunnel create '<tunnel-id>'
-    devtunnel port create '<tunnel-id>' -p <port>
+    devtunnel port create '<tunnel-id>' -p 5000
     ```
 5. Confirm the tunnel is created by running:
     ```powershell
@@ -40,6 +40,11 @@ It is based on the guide at [[Step by Step] Host and Integrate C# MCP Server wit
 You can run the server directly using the `dotnet run` command or build it first for better performance.
 
 Alternatively, you can run it straight from the nuget package if you prefer not to build the project.
+
+```powershell
+dnx Sytone.Personal.Mcp@0.3.0 --yes
+```
+
 
 ```powershell
 dotnet tool install -g <your-nuget-package>
