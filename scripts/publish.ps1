@@ -6,25 +6,25 @@ param(
 Write-Host "🔄 Updating version to $Version..."
 
 # Update version in csproj
-$csproj = "src/Personal.Mcp/Personal.Mcp.csproj"
-Write-Host "🔄 Updating $csproj"
-(Get-Content $csproj) -replace '<Version>.*</Version>', "<Version>$Version</Version>" | Set-Content $csproj
-(Get-Content $csproj) -replace '<PackageVersion>.*</PackageVersion>', "<PackageVersion>$Version</PackageVersion>" | Set-Content $csproj
+# $csproj = "src/Personal.Mcp/Personal.Mcp.csproj"
+# Write-Host "🔄 Updating $csproj"
+# (Get-Content $csproj) -replace '<Version>.*</Version>', "<Version>$Version</Version>" | Set-Content $csproj
+# (Get-Content $csproj) -replace '<PackageVersion>.*</PackageVersion>', "<PackageVersion>$Version</PackageVersion>" | Set-Content $csproj
 
-# Update version in .mcp/server.json
-$serverJsonPath = "src/Personal.Mcp/.mcp/server.json"
-Write-Host "🔄 Updating $serverJsonPath"
-(Get-Content $serverJsonPath) -replace '"version": ".*?"', "`"version`": `"$Version`"" | Set-Content $serverJsonPath
+# # Update version in .mcp/server.json
+# $serverJsonPath = "src/Personal.Mcp/.mcp/server.json"
+# Write-Host "🔄 Updating $serverJsonPath"
+# (Get-Content $serverJsonPath) -replace '"version": ".*?"', "`"version`": `"$Version`"" | Set-Content $serverJsonPath
 
-# Update version in Program.cs
-$programCsPath = "src/Personal.Mcp/Program.cs"
-Write-Host "🔄 Updating $programCsPath"
-(Get-Content $programCsPath) -replace 'Version = ".*?"', "Version = `"$Version`"" | Set-Content $programCsPath
+# # Update version in Program.cs
+# $programCsPath = "src/Personal.Mcp/Program.cs"
+# Write-Host "🔄 Updating $programCsPath"
+# (Get-Content $programCsPath) -replace 'Version = ".*?"', "Version = `"$Version`"" | Set-Content $programCsPath
 
-# Update the reference in README.md under the Quick Start section
-$readmePath = "README.md"
-Write-Host "🔄 Updating $readmePath"
-(Get-Content $readmePath) -replace 'Sytone\.Personal\.Mcp@.*?$', "Sytone.Personal.Mcp@$Version" | Set-Content $readmePath
+# # Update the reference in README.md under the Quick Start section
+# $readmePath = "README.md"
+# Write-Host "🔄 Updating $readmePath"
+# (Get-Content $readmePath) -replace 'Sytone\.Personal\.Mcp@.*?$', "Sytone.Personal.Mcp@$Version" | Set-Content $readmePath
 
 # Update the change log
 
