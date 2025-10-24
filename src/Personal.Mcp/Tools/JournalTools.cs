@@ -59,7 +59,7 @@ public sealed class JournalTools
                     return (file.rel, date);
                 })
                 .OrderByDescending(x => x.date)
-                .Where(x => (!from.HasValue || x.date.Date >= from.Value.Date) && (!to.HasValue || x.date.Date <= to.Value.Date))
+                .Where(x => IsDateInRange(x.date, from, to))
                 .Take(Math.Max(1, maxEntries))
                 .ToList();
         }
@@ -530,6 +530,26 @@ public sealed class JournalTools
             // Fallback to minimal stub if templating fails
             return $"# Week {isoWeek} in {isoYear}\n\n";
         }
+    }
+
+    /// <summary>
+    /// Checks if a date (which may represent an ISO week's Monday) falls within the specified range.
+    /// For weekly journal files, checks if the week (Monday-Sunday) overlaps with the date range.
+    /// </summary>
+    private static bool IsDateInRange(DateTimeOffset fileDate, DateTimeOffset? from, DateTimeOffset? to)
+    {
+        // For weekly files, fileDate is the Monday of that week
+        // We need to check if the week (Mon-Sun) overlaps with the requested range
+        
+        var weekStart = fileDate.Date;  // Monday
+        var weekEnd = fileDate.Date.AddDays(6);  // Sunday
+        
+        var rangeStart = from?.Date ?? DateTimeOffset.MinValue.Date;
+        var rangeEnd = to?.Date ?? DateTimeOffset.MaxValue.Date;
+        
+        // Check if the week overlaps with the requested range
+        // Week overlaps if: weekStart <= rangeEnd AND weekEnd >= rangeStart
+        return weekStart <= rangeEnd && weekEnd >= rangeStart;
     }
 
     private static DateTimeOffset? TryParseDate(string? value)

@@ -115,6 +115,24 @@ public class JournalToolsTests : IClassFixture<TestVaultFixture>
         }
 
         [Fact]
+        public void ReadJournalEntries_WithDateRangeSame_ReturnsFilteredEntries()
+        {
+            // Arrange
+            var fromDate = "2025-10-07";
+            var toDate = "2025-10-07";
+
+            // Act
+            var result = _journalTools.ReadJournalEntries(
+                fromDate: fromDate,
+                toDate: toDate,
+                includeContent: true);
+
+            // Assert
+            result.Should().NotBeEmpty();
+            result.Should().Contain("2025-10-");
+        }
+
+        [Fact]
         public void ReadJournalEntries_WithIncludeContentFalse_ReturnsOnlyPathsAndDates()
         {
             // Act
