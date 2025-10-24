@@ -19,6 +19,7 @@ public static class NoteTools
         IVaultService vault,
         IndexService index,
         ITemplateService template,
+        TimeProvider timeProvider,
         [Description("Path where the note should be created")] string path,
         [Description("Markdown content of the note")] string content,
         [Description("Whether to overwrite existing notes")] bool overwrite = false,
@@ -45,7 +46,7 @@ public static class NoteTools
                 // Add default values if not provided
                 if (!context.ContainsKey("created_date"))
                 {
-                    context["created_date"] = DateTime.Now;
+                    context["created_date"] = timeProvider.GetLocalNow();
                 }
                 
                 // Extract title from path if not provided

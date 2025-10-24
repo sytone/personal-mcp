@@ -18,17 +18,19 @@ public sealed class JournalTools
     private readonly IVaultService _vault;
     private readonly IndexService _index;
     private readonly ITemplateService _template;
+    private readonly TimeProvider _timeProvider;
 
     // Format strings for journal entries
     private const string TimeFormat = "HH:mm";
     private const string DefaultJournalPath = "1 Journal";
     private const string DefaultTasksHeading = "## Tasks This Week";
 
-    public JournalTools(IVaultService vault, IndexService index, ITemplateService template)
+    public JournalTools(IVaultService vault, IndexService index, ITemplateService template, TimeProvider timeProvider)
     {
         _vault = vault;
         _index = index;
         _template = template;
+        _timeProvider = timeProvider;
     }
 
     [McpServerTool, Description("Read journal entries from a markdown-based knowledge store.")]
@@ -41,12 +43,12 @@ public sealed class JournalTools
     {
         journalPath = ResolveJournalPath(journalPath);
 
-        DateTime? from = TryParseDate(fromDate);
-        DateTime? to = TryParseDate(toDate);
+        DateTimeOffset? from = TryParseDate(fromDate);
+        DateTimeOffset? to = TryParseDate(toDate);
 
         // Use VaultService to enumerate all markdown files in the journal directory
         // Handle case where directory doesn't exist
-        List<(string RelPath, DateTime Date)> mdFiles;
+        List<(string RelPath, DateTimeOffset Date)> mdFiles;
         try
         {
             mdFiles = _vault.EnumerateMarkdownFiles(journalPath)
@@ -123,15 +125,15 @@ public sealed class JournalTools
 
         try
         {
-            DateTime targetDate = DateTime.Now;
-            if (!string.IsNullOrWhiteSpace(date) && DateTime.TryParse(date, out var parsed))
+            DateTimeOffset targetDate = _timeProvider.GetLocalNow();
+            if (!string.IsNullOrWhiteSpace(date) && DateTimeOffset.TryParse(date, out var parsed))
             {
                 targetDate = parsed;
             }
 
             // Determine weekly file name (ISO week)
-            int isoYear = ISOWeek.GetYear(targetDate);
-            int isoWeek = ISOWeek.GetWeekOfYear(targetDate);
+            int isoYear = ISOWeek.GetYear(targetDate.DateTime);
+            int isoWeek = ISOWeek.GetWeekOfYear(targetDate.DateTime);
 
             // Find or construct the path to the weekly file
             string weeklyRelPath = ResolveWeeklyFilePath(journalPath, isoYear, isoWeek);
@@ -146,7 +148,7 @@ public sealed class JournalTools
             // Find the heading line index
             int headingIndex = lines.FindIndex(l => l.Trim().Equals(heading, StringComparison.Ordinal));
             string entryToInsert = entryContent.TrimEnd();
-            string timePrefix = DateTime.Now.ToString(TimeFormat, CultureInfo.InvariantCulture);
+            string timePrefix = _timeProvider.GetLocalNow().ToString(TimeFormat, CultureInfo.InvariantCulture);
 
             if (headingIndex >= 0)
             {
@@ -259,15 +261,15 @@ public sealed class JournalTools
 
         try
         {
-            DateTime targetDate = DateTime.Now;
-            if (!string.IsNullOrWhiteSpace(date) && DateTime.TryParse(date, out var parsed))
+            DateTimeOffset targetDate = _timeProvider.GetLocalNow();
+            if (!string.IsNullOrWhiteSpace(date) && DateTimeOffset.TryParse(date, out var parsed))
             {
                 targetDate = parsed;
             }
 
             // Determine weekly file name (ISO week)
-            int isoYear = ISOWeek.GetYear(targetDate);
-            int isoWeek = ISOWeek.GetWeekOfYear(targetDate);
+            int isoYear = ISOWeek.GetYear(targetDate.DateTime);
+            int isoWeek = ISOWeek.GetWeekOfYear(targetDate.DateTime);
 
             // Find or construct the path to the weekly file
             string weeklyRelPath = ResolveWeeklyFilePath(journalPath, isoYear, isoWeek);
@@ -488,7 +490,8 @@ public sealed class JournalTools
         try
         {
             // Get the Monday of this ISO week (first day)
-            var monday = ISOWeek.ToDateTime(isoYear, isoWeek, DayOfWeek.Monday);
+            var mondayDT = ISOWeek.ToDateTime(isoYear, isoWeek, DayOfWeek.Monday);
+            var monday = new DateTimeOffset(mondayDT, _timeProvider.GetLocalNow().Offset);
 
             // Get the template
             var template = _template.GetDefaultJournalTemplate();
@@ -502,7 +505,7 @@ public sealed class JournalTools
                 ["day_number"] = monday.Day,
                 ["day_name"] = monday.ToString("dddd"),
                 ["monday"] = monday,
-                ["created_date"] = DateTime.Now,
+                ["created_date"] = _timeProvider.GetLocalNow(),
                 ["monday_iso_week"] = monday
             };
 
@@ -529,10 +532,10 @@ public sealed class JournalTools
         }
     }
 
-    private static DateTime? TryParseDate(string? value)
+    private static DateTimeOffset? TryParseDate(string? value)
     {
         if (string.IsNullOrWhiteSpace(value)) return null;
-        if (DateTime.TryParse(value, out var dt)) return dt;
+        if (DateTimeOffset.TryParse(value, out var dt)) return dt;
         return null;
     }
 
@@ -563,7 +566,7 @@ public sealed class JournalTools
         @"^#\s+",
         RegexOptions.Compiled);
 
-    private static DateTime? ExtractDateFromPath(string relativePath)
+    private static DateTimeOffset? ExtractDateFromPath(string relativePath)
     {
         // Extract just the filename from the relative path
         var lastSlash = relativePath.LastIndexOfAny(['/', '\\']);
@@ -588,7 +591,7 @@ public sealed class JournalTools
         {
             if (m is >= 1 and <= 12 && d is >= 1 and <= 31)
             {
-                try { return new DateTime(y, m, d); } catch { /* ignore invalid */ }
+                try { return new DateTimeOffset(y, m, d, 0, 0, 0, TimeSpan.Zero); } catch { /* ignore invalid */ }
             }
         }
 
@@ -605,7 +608,8 @@ public sealed class JournalTools
             try
             {
                 // Use Monday of the ISO week as the representative date
-                return ISOWeek.ToDateTime(wy, ww, DayOfWeek.Monday);
+                var mondayDT = ISOWeek.ToDateTime(wy, ww, DayOfWeek.Monday);
+                return new DateTimeOffset(mondayDT, TimeSpan.Zero);
             }
             catch
             {

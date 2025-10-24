@@ -79,6 +79,7 @@ try
     var indexConnectionConfig = new IndexConnectionConfig(indexFilePath, false);
 
     // Register core services used by tools
+    builder.Services.AddSingleton<TimeProvider>(TimeProvider.System);
     builder.Services.AddSingleton(indexConnectionConfig);
     builder.Services.AddSingleton<IFileSystem, FileSystem>();
     builder.Services.AddSingleton<IVaultService, VaultService>();

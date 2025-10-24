@@ -2,6 +2,7 @@ using Personal.Mcp.Tools;
 using Personal.Mcp.Tests.TestHelpers;
 using Personal.Mcp.Services;
 using System.Globalization;
+using Microsoft.Extensions.Time.Testing;
 
 namespace Personal.Mcp.Tests.Tools;
 
@@ -15,7 +16,7 @@ public class JournalToolsTests : IClassFixture<TestVaultFixture>
     {
         _fixture = fixture;
         _templateService = new TemplateService();
-        _journalTools = new JournalTools(_fixture.VaultService, _fixture.IndexService, _templateService);
+        _journalTools = new JournalTools(_fixture.VaultService, _fixture.IndexService, _templateService, _fixture.TimeProvider);
     }
 
     public class ReadJournalEntriesTests : JournalToolsTests
@@ -197,7 +198,7 @@ public class JournalToolsTests : IClassFixture<TestVaultFixture>
             exists.Should().BeTrue();
 
             var content = _fixture.VaultService.ReadNoteRaw(weeklyFile);
-            string timePrefix = DateTime.Now.ToString("HH:mm", CultureInfo.InvariantCulture);
+            string timePrefix = _fixture.TimeProvider.GetLocalNow().ToString("HH:mm", CultureInfo.InvariantCulture);
 
             var expectedMarkdown = $"""
 ---
@@ -261,10 +262,10 @@ created: 2025-11-10T00:00
         {
             // Arrange
             var entryContent = "Current date entry";
-            var today = DateTime.Now;
+            var today = _fixture.TimeProvider.GetLocalNow();
             var todayString = today.ToString("yyyy-MM-dd");
 
-            // Act - Pass explicit date to avoid race condition between DateTime.Now calls
+            // Act - Pass explicit date to avoid race condition
             var result = _journalTools.AddJournalEntry(entryContent, date: todayString);
 
             // Assert
@@ -272,8 +273,8 @@ created: 2025-11-10T00:00
             result.Should().Contain($"## {today.Day} {today:dddd}");
 
             // Calculate expected week file
-            var isoYear = ISOWeek.GetYear(today);
-            var isoWeek = ISOWeek.GetWeekOfYear(today);
+            var isoYear = ISOWeek.GetYear(today.DateTime);
+            var isoWeek = ISOWeek.GetWeekOfYear(today.DateTime);
             var expectedFile = $"1 Journal/{isoYear}/{isoYear}-W{isoWeek:00}.md";
 
             // Verify the file was created/updated and contains our entry
@@ -365,7 +366,7 @@ created: 2025-11-10T00:00
             result.Should().NotContain("Error");
 
             // Verify date parsing worked correctly
-            var parsedDate = DateTime.Parse(dateString);
+            var parsedDate = DateTimeOffset.Parse(dateString);
             result.Should().Contain($"## {parsedDate.Day} {parsedDate:dddd}");
         }
 
@@ -480,9 +481,9 @@ created: 2025-11-10T00:00
             result.Should().NotContain("Error");
 
             // Should use current date
-            var today = DateTime.Now;
-            var expectedWeek = ISOWeek.GetWeekOfYear(today);
-            var expectedYear = ISOWeek.GetYear(today);
+            var today = _fixture.TimeProvider.GetLocalNow();
+            var expectedWeek = ISOWeek.GetWeekOfYear(today.DateTime);
+            var expectedYear = ISOWeek.GetYear(today.DateTime);
             result.Should().Contain($"{expectedYear}-W{expectedWeek:00}.md");
         }
 
@@ -780,7 +781,7 @@ created: 2025-11-10T00:00
         {
             // Arrange
             var taskDescription = "Current week task";
-            var today = DateTime.Now;
+            var today = _fixture.TimeProvider.GetLocalNow();
 
             // Act
             var result = _journalTools.AddJournalTask(taskDescription);
@@ -789,8 +790,8 @@ created: 2025-11-10T00:00
             result.Should().Contain("Added task to");
 
             // Calculate expected week file
-            var isoYear = ISOWeek.GetYear(today);
-            var isoWeek = ISOWeek.GetWeekOfYear(today);
+            var isoYear = ISOWeek.GetYear(today.DateTime);
+            var isoWeek = ISOWeek.GetWeekOfYear(today.DateTime);
             var expectedFile = $"1 Journal/{isoYear}/{isoYear}-W{isoWeek:00}.md";
 
             // Verify the task was added
@@ -888,9 +889,9 @@ created: 2025-11-10T00:00
             result.Should().NotContain("Error");
 
             // Verify task was added
-            var parsedDate = DateTime.Parse(dateString);
-            var isoYear = ISOWeek.GetYear(parsedDate);
-            var isoWeek = ISOWeek.GetWeekOfYear(parsedDate);
+            var parsedDate = DateTimeOffset.Parse(dateString);
+            var isoYear = ISOWeek.GetYear(parsedDate.DateTime);
+            var isoWeek = ISOWeek.GetWeekOfYear(parsedDate.DateTime);
             var expectedFile = $"1 Journal/{isoYear}/{isoYear}-W{isoWeek:00}.md";
 
             var content = _fixture.VaultService.ReadNoteRaw(expectedFile);
@@ -946,9 +947,9 @@ created: 2025-11-10T00:00
             result.Should().NotContain("Error");
 
             // Should use current date
-            var today = DateTime.Now;
-            var expectedWeek = ISOWeek.GetWeekOfYear(today);
-            var expectedYear = ISOWeek.GetYear(today);
+            var today = _fixture.TimeProvider.GetLocalNow();
+            var expectedWeek = ISOWeek.GetWeekOfYear(today.DateTime);
+            var expectedYear = ISOWeek.GetYear(today.DateTime);
             result.Should().Contain($"{expectedYear}-W{expectedWeek:00}.md");
         }
 

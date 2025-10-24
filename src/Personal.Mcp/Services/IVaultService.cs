@@ -28,7 +28,10 @@ public interface IVaultService
     /// <summary>
     /// Gets file statistics for a note
     /// </summary>
-    (bool exists, DateTime lastModified, long size) GetFileStats(string relativePath);
+        /// <summary>
+    /// Get file statistics (existence, last modified time, size).
+    /// </summary>
+    (bool exists, DateTimeOffset lastModified, long size) GetFileStats(string relativePath);
 
     /// <summary>
     /// Checks if a directory exists in the vault

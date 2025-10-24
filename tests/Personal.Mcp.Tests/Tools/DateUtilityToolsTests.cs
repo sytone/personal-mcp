@@ -1,6 +1,7 @@
 using Personal.Mcp.Tools;
 using System.Globalization;
 using System.Text.Json;
+using Microsoft.Extensions.Time.Testing;
 
 namespace Personal.Mcp.Tests.Tools;
 
@@ -25,8 +26,11 @@ public class DateUtilityToolsTests
         public void CalculateRelativeDate_WithDayOfWeek_ReturnsCorrectDate(
             string referenceDate, string description, string expectedDate, string expectedDayOfWeek)
         {
+            // Arrange
+            var fakeTime = new FakeTimeProvider();
+            
             // Act
-            var result = DateUtilityTools.CalculateRelativeDate(description, referenceDate);
+            var result = DateUtilityTools.CalculateRelativeDate(fakeTime, description, referenceDate);
             var json = GetResultAsJson(result);
 
             // Assert
@@ -42,8 +46,11 @@ public class DateUtilityToolsTests
         public void CalculateRelativeDate_WithSimpleKeywords_ReturnsCorrectDate(
             string referenceDate, string description, string expectedDate)
         {
+            // Arrange
+            var fakeTime = new FakeTimeProvider();
+            
             // Act
-            var result = DateUtilityTools.CalculateRelativeDate(description, referenceDate);
+            var result = DateUtilityTools.CalculateRelativeDate(fakeTime, description, referenceDate);
             var json = GetResultAsJson(result);
 
             // Assert
@@ -54,8 +61,11 @@ public class DateUtilityToolsTests
         [Fact]
         public void CalculateRelativeDate_WithInvalidDescription_ReturnsError()
         {
+            // Arrange
+            var fakeTime = new FakeTimeProvider();
+            
             // Act
-            var result = DateUtilityTools.CalculateRelativeDate("invalid description", "2025-10-19");
+            var result = DateUtilityTools.CalculateRelativeDate(fakeTime, "invalid description", "2025-10-19");
             var json = GetResultAsJson(result);
 
             // Assert
@@ -72,8 +82,12 @@ public class DateUtilityToolsTests
         public void GetDateInfo_WithValidDate_ReturnsCorrectInformation(
             string date, string expectedDayOfWeek, int expectedWeek, int expectedIsoYear)
         {
+            // Arrange
+            var fakeTime = new FakeTimeProvider();
+            fakeTime.SetUtcNow(new DateTimeOffset(2025, 10, 19, 0, 0, 0, TimeSpan.Zero));
+            
             // Act
-            var result = DateUtilityTools.GetDateInfo(date);
+            var result = DateUtilityTools.GetDateInfo(fakeTime, date);
             var json = GetResultAsJson(result);
 
             // Assert
@@ -86,8 +100,11 @@ public class DateUtilityToolsTests
         [Fact]
         public void GetDateInfo_WithInvalidDate_ReturnsError()
         {
+            // Arrange
+            var fakeTime = new FakeTimeProvider();
+            
             // Act
-            var result = DateUtilityTools.GetDateInfo("invalid-date");
+            var result = DateUtilityTools.GetDateInfo(fakeTime, "invalid-date");
             var json = GetResultAsJson(result);
 
             // Assert
@@ -102,10 +119,11 @@ public class DateUtilityToolsTests
         public void GetWeekDates_WithSpecificDate_ReturnsCorrectWeek()
         {
             // Arrange - Oct 15, 2025 is in week 42
+            var fakeTime = new FakeTimeProvider();
             var testDate = "2025-10-15";
 
             // Act
-            var result = DateUtilityTools.GetWeekDates(testDate);
+            var result = DateUtilityTools.GetWeekDates(fakeTime, testDate);
             var json = GetResultAsJson(result);
 
             // Assert
@@ -132,9 +150,12 @@ public class DateUtilityToolsTests
             // User said "last Wednesday" on October 19, 2025 (Sunday)
             // Expected: October 15, 2025 (Wednesday)
             // Bug: Incorrectly calculated as October 16, 2025 (Thursday)
+            
+            // Arrange
+            var fakeTime = new FakeTimeProvider();
 
             // Act
-            var result = DateUtilityTools.CalculateRelativeDate("last Wednesday", "2025-10-19");
+            var result = DateUtilityTools.CalculateRelativeDate(fakeTime, "last Wednesday", "2025-10-19");
             var json = GetResultAsJson(result);
 
             // Assert
@@ -154,8 +175,11 @@ public class DateUtilityToolsTests
         public void DateUtilityTools_AllDaysOfWeek_FromSundayOct19(
             string referenceDate, string description, string expectedDate, string expectedDay)
         {
+            // Arrange
+            var fakeTime = new FakeTimeProvider();
+            
             // Act
-            var result = DateUtilityTools.CalculateRelativeDate(description, referenceDate);
+            var result = DateUtilityTools.CalculateRelativeDate(fakeTime, description, referenceDate);
             var json = GetResultAsJson(result);
 
             // Assert

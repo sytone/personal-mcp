@@ -63,7 +63,7 @@ public class TemplateServiceTests
         {
             // Arrange
             var template = "Date: {{date | date: '%Y-%m-%d'}}";
-            var testDate = new DateTime(2025, 10, 21);
+            var testDate = new DateTimeOffset(2025, 10, 21, 0, 0, 0, TimeSpan.Zero);
             var context = new Dictionary<string, object>
             {
                 ["date"] = testDate
@@ -364,8 +364,9 @@ Message: {{message}}
         {
             // Arrange
             var template = _templateService.GetDefaultJournalTemplate();
-            var journalDay = new DateTime(2025, 10, 21);
-            var monday = ISOWeek.ToDateTime(2025, 43, DayOfWeek.Monday);
+            var journalDay = new DateTimeOffset(2025, 10, 21, 0, 0, 0, TimeSpan.Zero);
+            var mondayDT = ISOWeek.ToDateTime(2025, 43, DayOfWeek.Monday);
+            var monday = new DateTimeOffset(mondayDT, TimeSpan.Zero);
 
             var context = new Dictionary<string, object>
             {
@@ -373,7 +374,7 @@ Message: {{message}}
                 ["year"] = journalDay.Year,
                 ["day_number"] = journalDay.Day,
                 ["journal_day"] = journalDay,
-                ["created_date"] = new DateTime(2025, 1, 1),
+                ["created_date"] = new DateTimeOffset(2025, 1, 1, 0, 0, 0, TimeSpan.Zero),
                 ["monday_iso_week"] = monday
 
             };
@@ -408,7 +409,7 @@ Message: {{message}}
             _templateService.SetTimeZone(TimeZoneInfo.Utc);
 
             var template = $"{{{{journal_day | iso_date: '{format}'}}}}";
-            var journalDay = DateTime.Parse(dateTime);
+            var journalDay = DateTimeOffset.Parse(dateTime);
 
             var context = new Dictionary<string, object>
             {
@@ -462,7 +463,7 @@ Message: {{message}}
             var context = new Dictionary<string, object>
             {
                 ["title"] = "My Note",
-                ["created_date"] = new DateTime(2025, 10, 21)
+                ["created_date"] = new DateTimeOffset(2025, 10, 21, 0, 0, 0, TimeSpan.Zero)
             };
 
             // Act

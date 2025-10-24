@@ -55,11 +55,11 @@ public sealed class VaultService : IVaultService
         return _fileSystem.File.ReadAllText(abs);
     }
 
-    public (bool exists, DateTime lastModified, long size) GetFileStats(string relativePath)
+    public (bool exists, DateTimeOffset lastModified, long size) GetFileStats(string relativePath)
     {
         var abs = GetAbsolutePath(relativePath);
         if (!_fileSystem.File.Exists(abs))
-            return (false, DateTime.MinValue, 0);
+            return (false, DateTimeOffset.MinValue, 0);
         var info = _fileSystem.FileInfo.New(abs);
         return (true, info.LastWriteTime, info.Length);
     }

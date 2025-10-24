@@ -22,8 +22,8 @@ public static class OrganizationTools
         var baseDir = string.IsNullOrWhiteSpace(directory) ? root : vault.GetAbsolutePath(directory);
         var opts = recursive ? SearchOption.AllDirectories : SearchOption.TopDirectoryOnly;
         
-        DateTime? startDate = null;
-        DateTime? endDate = null;
+        DateTimeOffset? startDate = null;
+        DateTimeOffset? endDate = null;
         
         // Parse date filter
         if (!string.IsNullOrWhiteSpace(date_filter))
@@ -32,11 +32,11 @@ public static class OrganizationTools
             {
                 // Date range format: YYYY-MM-DD:YYYY-MM-DD
                 var parts = date_filter.Split(':', 2);
-                if (DateTime.TryParseExact(parts[0].Trim(), "yyyy-MM-dd", CultureInfo.InvariantCulture, DateTimeStyles.None, out var start))
+                if (DateTimeOffset.TryParseExact(parts[0].Trim(), "yyyy-MM-dd", CultureInfo.InvariantCulture, DateTimeStyles.AssumeLocal, out var start))
                 {
                     startDate = start.Date;
                 }
-                if (parts.Length > 1 && DateTime.TryParseExact(parts[1].Trim(), "yyyy-MM-dd", CultureInfo.InvariantCulture, DateTimeStyles.None, out var end))
+                if (parts.Length > 1 && DateTimeOffset.TryParseExact(parts[1].Trim(), "yyyy-MM-dd", CultureInfo.InvariantCulture, DateTimeStyles.AssumeLocal, out var end))
                 {
                     endDate = end.Date.AddDays(1).AddTicks(-1); // End of day
                 }
@@ -44,7 +44,7 @@ public static class OrganizationTools
             else
             {
                 // Single date format: YYYY-MM-DD
-                if (DateTime.TryParseExact(date_filter.Trim(), "yyyy-MM-dd", CultureInfo.InvariantCulture, DateTimeStyles.None, out var date))
+                if (DateTimeOffset.TryParseExact(date_filter.Trim(), "yyyy-MM-dd", CultureInfo.InvariantCulture, DateTimeStyles.AssumeLocal, out var date))
                 {
                     startDate = date.Date;
                     endDate = date.Date.AddDays(1).AddTicks(-1); // End of day

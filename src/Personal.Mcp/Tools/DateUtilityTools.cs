@@ -14,17 +14,18 @@ public static class DateUtilityTools
 {
     [McpServerTool, Description("Calculate an exact date from a relative description (e.g., 'last Wednesday', 'next Monday', 'two weeks ago'). Returns the date and day of the week for verification.")]
     public static object CalculateRelativeDate(
+        TimeProvider timeProvider,
         [Description("The relative date description (e.g., 'last Wednesday', 'next Friday', 'yesterday', 'two weeks ago')")] string relativeDateDescription,
         [Description("Optional reference date in YYYY-MM-DD format. If not provided, uses today's date.")] string? referenceDate = null)
     {
-        DateTime reference = DateTime.Now.Date;
-        if (!string.IsNullOrWhiteSpace(referenceDate) && DateTime.TryParse(referenceDate, out var parsed))
+        DateTimeOffset reference = timeProvider.GetLocalNow().Date;
+        if (!string.IsNullOrWhiteSpace(referenceDate) && DateTimeOffset.TryParse(referenceDate, out var parsed))
         {
             reference = parsed.Date;
         }
 
         var description = relativeDateDescription.ToLowerInvariant().Trim();
-        DateTime? calculatedDate = null;
+        DateTimeOffset? calculatedDate = null;
 
         try
         {
@@ -83,8 +84,8 @@ public static class DateUtilityTools
                     calculatedDate = calculatedDate.Value.ToString("yyyy-MM-dd"),
                     calculatedDayOfWeek = calculatedDate.Value.ToString("dddd"),
                     daysFromReference = (calculatedDate.Value - reference).Days,
-                    isoWeek = ISOWeek.GetWeekOfYear(calculatedDate.Value),
-                    isoYear = ISOWeek.GetYear(calculatedDate.Value)
+                    isoWeek = ISOWeek.GetWeekOfYear(calculatedDate.Value.DateTime),
+                    isoYear = ISOWeek.GetYear(calculatedDate.Value.DateTime)
                 };
             }
 
@@ -107,9 +108,10 @@ public static class DateUtilityTools
 
     [McpServerTool, Description("Get information about a specific date including day of week, ISO week number, and relative position to today.")]
     public static object GetDateInfo(
+        TimeProvider timeProvider,
         [Description("The date to get information about in YYYY-MM-DD format")] string date)
     {
-        if (!DateTime.TryParse(date, out var targetDate))
+        if (!DateTimeOffset.TryParse(date, out var targetDate))
         {
             return new
             {
@@ -118,7 +120,7 @@ public static class DateUtilityTools
             };
         }
 
-        var today = DateTime.Now.Date;
+        var today = timeProvider.GetLocalNow().Date;
         var daysDifference = (targetDate.Date - today).Days;
 
         string relativeDescription;
@@ -151,8 +153,8 @@ public static class DateUtilityTools
             dayOfMonth = targetDate.Day,
             month = targetDate.ToString("MMMM"),
             year = targetDate.Year,
-            isoWeek = ISOWeek.GetWeekOfYear(targetDate),
-            isoYear = ISOWeek.GetYear(targetDate),
+            isoWeek = ISOWeek.GetWeekOfYear(targetDate.DateTime),
+            isoYear = ISOWeek.GetYear(targetDate.DateTime),
             dayOfYear = targetDate.DayOfYear,
             relativeToToday = relativeDescription,
             daysFromToday = daysDifference,
@@ -162,19 +164,21 @@ public static class DateUtilityTools
 
     [McpServerTool, Description("Get all dates in the current week (or a specific week) with their day names. Useful for planning journal entries.")]
     public static object GetWeekDates(
+        TimeProvider timeProvider,
         [Description("Optional date in YYYY-MM-DD format to get the week for. Defaults to current week.")] string? date = null)
     {
-        DateTime targetDate = DateTime.Now.Date;
-        if (!string.IsNullOrWhiteSpace(date) && DateTime.TryParse(date, out var parsed))
+        DateTimeOffset targetDate = timeProvider.GetLocalNow().Date;
+        if (!string.IsNullOrWhiteSpace(date) && DateTimeOffset.TryParse(date, out var parsed))
         {
             targetDate = parsed.Date;
         }
 
-        var isoYear = ISOWeek.GetYear(targetDate);
-        var isoWeek = ISOWeek.GetWeekOfYear(targetDate);
+        var isoYear = ISOWeek.GetYear(targetDate.DateTime);
+        var isoWeek = ISOWeek.GetWeekOfYear(targetDate.DateTime);
 
         // Get Monday of the ISO week
-        var monday = ISOWeek.ToDateTime(isoYear, isoWeek, DayOfWeek.Monday);
+        var mondayDT = ISOWeek.ToDateTime(isoYear, isoWeek, DayOfWeek.Monday);
+        var monday = new DateTimeOffset(mondayDT, timeProvider.GetLocalNow().Offset);
 
         var weekDates = new List<object>();
         for (int i = 0; i < 7; i++)
@@ -185,7 +189,7 @@ public static class DateUtilityTools
                 date = day.ToString("yyyy-MM-dd"),
                 dayOfWeek = day.ToString("dddd"),
                 dayNumber = day.Day,
-                isToday = day.Date == DateTime.Now.Date
+                isToday = day.Date == timeProvider.GetLocalNow().Date
             });
         }
 
@@ -202,7 +206,7 @@ public static class DateUtilityTools
     /// <summary>
     /// Get the most recent occurrence of a specific day of the week, going backwards from the reference date.
     /// </summary>
-    private static DateTime GetLastDayOfWeek(DateTime reference, string dayName)
+    private static DateTimeOffset GetLastDayOfWeek(DateTimeOffset reference, string dayName)
     {
         if (!Enum.TryParse<DayOfWeek>(dayName, ignoreCase: true, out var targetDay))
         {
@@ -224,7 +228,7 @@ public static class DateUtilityTools
     /// <summary>
     /// Get the next occurrence of a specific day of the week, going forwards from the reference date.
     /// </summary>
-    private static DateTime GetNextDayOfWeek(DateTime reference, string dayName)
+    private static DateTimeOffset GetNextDayOfWeek(DateTimeOffset reference, string dayName)
     {
         if (!Enum.TryParse<DayOfWeek>(dayName, ignoreCase: true, out var targetDay))
         {

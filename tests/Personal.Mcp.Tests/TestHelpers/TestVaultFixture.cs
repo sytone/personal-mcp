@@ -3,6 +3,7 @@ using System.Text;
 using System.Globalization;
 using System.IO.Abstractions;
 using System.IO.Abstractions.TestingHelpers;
+using Microsoft.Extensions.Time.Testing;
 
 namespace Personal.Mcp.Tests.TestHelpers;
 
@@ -15,9 +16,14 @@ public class TestVaultFixture : IDisposable
     public IFileSystem FileSystem { get; }
     public IVaultService VaultService { get; }
     public IndexService IndexService { get; }
+    public FakeTimeProvider TimeProvider { get; }
 
     public TestVaultFixture()
     {
+        // Initialize TimeProvider with a fixed date for consistent tests
+        TimeProvider = new FakeTimeProvider();
+        TimeProvider.SetUtcNow(new DateTimeOffset(2025, 10, 24, 10, 0, 0, TimeSpan.Zero));
+
         // Use a platform-agnostic path for the mock vault
         // On Windows: C:\TestVault
         // On Linux: /tmp/TestVault
@@ -63,14 +69,15 @@ public class TestVaultFixture : IDisposable
             mockFiles[dir] = new MockDirectoryData();
         }
 
-        // Create test journal files
-        AddMockFile(mockFiles, Path.Combine(VaultPath, "1 Journal", "2025", "2025-W42.md"), CreateWeeklyJournalContent(2025, 42));
-        AddMockFile(mockFiles, Path.Combine(VaultPath, "1 Journal", "2025", "2025-W41.md"), CreateWeeklyJournalContent(2025, 41));
-        AddMockFile(mockFiles, Path.Combine(VaultPath, "1 Journal", "2024", "2024-12-31.md"), CreateDailyJournalContent(new DateTime(2024, 12, 31)));
+        // Create test journal files (use consistent timestamps matching FakeTimeProvider time)
+        var testTime = TimeProvider.GetLocalNow();
+        AddMockFile(mockFiles, Path.Combine(VaultPath, "1 Journal", "2025", "2025-W42.md"), CreateWeeklyJournalContent(2025, 42, testTime));
+        AddMockFile(mockFiles, Path.Combine(VaultPath, "1 Journal", "2025", "2025-W41.md"), CreateWeeklyJournalContent(2025, 41, testTime));
+        AddMockFile(mockFiles, Path.Combine(VaultPath, "1 Journal", "2024", "2024-12-31.md"), CreateDailyJournalContent(new DateTimeOffset(2024, 12, 31, 0, 0, 0, TimeSpan.Zero)));
 
         // Create test note files
-        AddMockFile(mockFiles, Path.Combine(VaultPath, "Notes", "Test Note.md"), CreateTestNoteContent("Test Note", new[] { "test", "example" }));
-        AddMockFile(mockFiles, Path.Combine(VaultPath, "Projects", "Personal MCP.md"), CreateTestNoteContent("Personal MCP Project", new[] { "project", "mcp", "csharp" }));
+        AddMockFile(mockFiles, Path.Combine(VaultPath, "Notes", "Test Note.md"), CreateTestNoteContent("Test Note", new[] { "test", "example" }, testTime));
+        AddMockFile(mockFiles, Path.Combine(VaultPath, "Projects", "Personal MCP.md"), CreateTestNoteContent("Personal MCP Project", new[] { "project", "mcp", "csharp" }, testTime));
     }
 
     private void AddMockFile(Dictionary<string, MockFileData> mockFiles, string fullPath, string content)
@@ -78,8 +85,12 @@ public class TestVaultFixture : IDisposable
         mockFiles[fullPath] = new MockFileData(content);
     }
 
-    private static string CreateWeeklyJournalContent(int year, int week)
+    private static string CreateWeeklyJournalContent(int year, int week, DateTimeOffset createdTime)
     {
+        // Calculate the Monday of this ISO week for day headings
+        var mondayDT = ISOWeek.ToDateTime(year, week, DayOfWeek.Monday);
+        var monday = new DateTimeOffset(mondayDT, TimeSpan.Zero);
+        
         var sb = new StringBuilder();
         sb.AppendLine("---");
         sb.AppendLine($"tags:");
@@ -87,13 +98,13 @@ public class TestVaultFixture : IDisposable
         sb.AppendLine("notetype: weekly");
         sb.AppendLine("noteVersion: 5");
         sb.AppendLine("category: weekly");
-        sb.AppendLine($"created: {DateTime.Now:yyyy-MM-ddTHH:mm}");
+        // Use the provided createdTime (typically FakeTimeProvider.GetLocalNow())
+        sb.AppendLine($"created: {createdTime:yyyy-MM-ddTHH:mm}");
         sb.AppendLine("---");
         sb.AppendLine($"# Week {week} in {year}");
         sb.AppendLine();
 
         // Add some sample daily entries
-        var monday = ISOWeek.ToDateTime(year, week, DayOfWeek.Monday);
         for (int i = 0; i < 7; i++)
         {
             var day = monday.AddDays(i);
@@ -106,7 +117,7 @@ public class TestVaultFixture : IDisposable
         return sb.ToString();
     }
 
-    private static string CreateDailyJournalContent(DateTime date)
+    private static string CreateDailyJournalContent(DateTimeOffset date)
     {
         var sb = new StringBuilder();
         sb.AppendLine("---");
@@ -127,7 +138,7 @@ public class TestVaultFixture : IDisposable
         return sb.ToString();
     }
 
-    private static string CreateTestNoteContent(string title, string[] tags)
+    private static string CreateTestNoteContent(string title, string[] tags, DateTimeOffset createdTime)
     {
         var sb = new StringBuilder();
         sb.AppendLine("---");
@@ -136,7 +147,7 @@ public class TestVaultFixture : IDisposable
         {
             sb.AppendLine($"  - {tag}");
         }
-        sb.AppendLine($"created: {DateTime.Now:yyyy-MM-ddTHH:mm}");
+        sb.AppendLine($"created: {createdTime:yyyy-MM-ddTHH:mm}");
         sb.AppendLine("---");
         sb.AppendLine($"# {title}");
         sb.AppendLine();
