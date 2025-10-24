@@ -262,9 +262,10 @@ created: 2025-11-10T00:00
             // Arrange
             var entryContent = "Current date entry";
             var today = DateTime.Now;
+            var todayString = today.ToString("yyyy-MM-dd");
 
-            // Act
-            var result = _journalTools.AddJournalEntry(entryContent);
+            // Act - Pass explicit date to avoid race condition between DateTime.Now calls
+            var result = _journalTools.AddJournalEntry(entryContent, date: todayString);
 
             // Assert
             result.Should().Contain("Added entry to");
