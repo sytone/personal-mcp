@@ -1,4 +1,4 @@
-﻿<Project Sdk="Microsoft.NET.Sdk">
+<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
     <TargetFramework>net9.0</TargetFramework>
@@ -25,8 +25,8 @@
     <!-- Set recommended package metadata -->
     <PackageReadmeFile>README.md</PackageReadmeFile>
     <PackageId>Sytone.Personal.Mcp</PackageId>
-    <Version>0.2.1</Version>
-    <PackageVersion>0.2.1</PackageVersion>
+    <Version>0.3.0</Version>
+    <PackageVersion>0.3.0</PackageVersion>
     <PackageTags>AI; MCP; server; stdio; obsidian</PackageTags>
     <Description>Personal MCP Server - Interact with Obsidian vaults, manage notes, links, tags, and more.</Description>
     <RepositoryUrl>https://github.com/sytone/personal-mcp</RepositoryUrl>

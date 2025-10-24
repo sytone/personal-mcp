@@ -60,7 +60,7 @@ try
     var mcpServerBuilder = builder.Services
         .AddMcpServer(options =>
         {
-            options.ServerInfo = new() { Name = "Personal.Mcp", Version = "0.2.1" };
+            options.ServerInfo = new() { Name = "Personal.Mcp", Version = "0.3.0" };
         })
         .WithToolsFromAssembly();
 
