@@ -51,17 +51,17 @@ if ($LASTEXITCODE -ne 0) {
 
 # dotnet tool install --global Versionize
 
-versionize --skip-commit --skip-tag
+versionize
 
-Read-Host "✅ Build succeeded. Press Enter to continue with publishing or Ctrl+C to abort."
+# Read-Host "✅ Build succeeded. Press Enter to continue with publishing or Ctrl+C to abort."
 
-# Commit the version changes
-git add .
-git commit -m "chore: bump version to $Version"
-git push
+# # Commit the version changes
+# git add .
+# git commit -m "chore: bump version to $Version"
+# git push
 
-# Tag in git
-git tag -a "$Version" -m "Release version $Version"
-git push --tags
+# # Tag in git
+# git tag -a "$Version" -m "Release version $Version"
+# git push --tags
 
 Write-Host "✅ Package published!"
