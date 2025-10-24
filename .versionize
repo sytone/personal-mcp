@@ -2,6 +2,7 @@
   "changelog": {
     "header": "Personal MCP Change Log",
     "includeAllCommits": true,
+    "tagTemplate": "{version}",
     "sections": [
       {
         "type": "feat",
