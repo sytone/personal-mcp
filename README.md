@@ -12,7 +12,7 @@ A C# implementation of an MCP (Model Context Protocol) server for interacting wi
 If you have dotnet 10.x or later installed, you can run the MCP server directly using `dnx`:
 
 ```powershell
-dnx Sytone.Personal.Mcp@0.3.0 --yes
+dnx Sytone.Personal.Mcp@0.4.0 --yes
 ```
 If you want to run from source clone this repository.
 
