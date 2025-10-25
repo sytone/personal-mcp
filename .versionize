@@ -1,24 +1,56 @@
 {
-  "changelog": {
-    "header": "Personal MCP Change Log",
-    "includeAllCommits": true,
-    "tagTemplate": "{version}",
-    "sections": [
-      {
-        "type": "feat",
-        "section": "✨ Features",
-        "hidden": false
-      },
-      {
-        "type": "fix",
-        "section": "🐛 Bug Fixes",
-        "hidden": false
-      },
-      {
-        "type": "perf",
-        "section": "🚀 Performance",
-        "hidden": false
-      }
+    "skipDirty": true,
+    "silent": false,
+    "projects": [
+        {
+            "name": "mcp",
+            "path": "src/Personal.Mcp",
+            "tagTemplate": "{version}",
+            "changelog": {
+                "header": "Personal MCP Change Log",
+                "sections": [
+                    {
+                        "type": "feat",
+                        "section": "✨ Features",
+                        "hidden": false
+                    },
+                    {
+                        "type": "fix",
+                        "section": "🐛 Bug Fixes",
+                        "hidden": false
+                    },
+                    {
+                        "type": "perf",
+                        "section": "🚀 Performance",
+                        "hidden": false
+                    }
+                ]
+            }
+        },
+        {
+            "name": "console",
+            "path": "tests/Personal.Mcp.Tests",
+            "tagTemplate": "{name}-v{version}",
+            "changelog": {
+                "header": "Console Changelog",
+                "sections": [
+                    {
+                        "type": "feat",
+                        "section": "✨ Features",
+                        "hidden": false
+                    },
+                    {
+                        "type": "fix",
+                        "section": "🐛 Bug Fixes",
+                        "hidden": false
+                    },
+                    {
+                        "type": "perf",
+                        "section": "🚀 Performance",
+                        "hidden": false
+                    }
+                ]
+            }
+        }
     ]
-  }
 }
