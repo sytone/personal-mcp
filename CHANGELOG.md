@@ -1,3 +1,35 @@
+## [0.4.0] - 2025-10-25
+
+### 🚀 Features
+
+- *(date)* Update date handling to use DateTimeOffset
+- *(journal)* Add date range filtering for journal entries
+- *(versionize)* Restructure changelog configuration
+- *(changelog)* Add initial configuration for changelog generation
+
+### 🐛 Bug Fixes
+
+- *(journal)* Pass explicit date to AddJournalEntry to avoid race condition
+
+### 📚 Documentation
+
+- Add integration guide for Copilot Studio
+- Add migration prompts for DateTime to DateTimeOffset
+- *(copilot)* Update port command example to use 5000
+
+### ⚙️ Miscellaneous Tasks
+
+- Update README.md with version reference in Quick Start
+- *(publish)* Comment out dotnet tool installation
+- *(publish)* Simplify versionize command and cleanup comments
+- *(publish)* Comment out version update sections in script
+- *(versionize)* Add tagTemplate to changelog configuration
+- *(changelog)* Update structure and add new entries
+- *(publish)* Refactor version update process in script
+- *(readme)* Update package reference to include --yes flag
+- *(changelog)* Remove unreleased section and clean up entries
+- Bump files to version to 0.4.0
+
 ## [0.3.0] - 2025-10-24
 
 ### 🚀 Features
