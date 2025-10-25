@@ -25,7 +25,7 @@ Write-Host "🔄 Updating $programCsPath"
 # # Update the reference in README.md under the Quick Start section
 $readmePath = "README.md"
 Write-Host "🔄 Updating $readmePath"
-(Get-Content $readmePath) -replace 'Sytone\.Personal\.Mcp@.*?$', "Sytone.Personal.Mcp@$Version" | Set-Content $readmePath
+(Get-Content $readmePath) -replace 'Sytone\.Personal\.Mcp@.*?$', "Sytone.Personal.Mcp@$Version --yes" | Set-Content $readmePath
 
 # Update the change log
 
